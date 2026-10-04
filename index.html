@@ -103,7 +103,7 @@
             background: var(--system-dark); border-top: 2px solid var(--system-border); padding: 10px; box-sizing: border-box; z-index: 10;
         }
         
-        .nav-btn { flex: 1; margin: 0 5px; text-align: center; border: 1px solid var(--system-border); color: var(--system-blue); }
+        .nav-btn { flex: 1; margin: 0 5px; text-align: center; border: 1px solid var(--system-border); color: var(--system-blue); padding: 10px 5px; font-size: 0.9em; }
         .nav-btn.active { background: var(--system-blue); color: var(--system-dark); box-shadow: 0 0 10px var(--system-blue); font-weight: bold; }
         
         #scanner-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.92); z-index: 100; color: #00ff00; flex-direction: column; justify-content: center; align-items: center; font-size: 1.3em; text-shadow: 0 0 10px #00ff00; text-align: center; padding: 20px; box-sizing: border-box; }
@@ -111,7 +111,7 @@
 </head>
 <body>
 
-    <input type="file" accept="image/*" capture="environment" id="camera-input" style="display:none;" onchange="handleImageUpload(event)">
+    <input type="file" accept="image/*" id="camera-input" style="display:none;" onchange="handleImageUpload(event)">
     <audio id="alarm-sound" src="https://assets.mixkit.co/active_storage/sfx/995/995-preview.mp3" preload="auto"></audio>
 
     <div id="scanner-overlay">
@@ -126,6 +126,7 @@
             <div style="font-size: 1.5em; text-align: center;">LEVEL <span id="level">1</span></div>
             <div class="progress-bar"><div class="progress-fill" id="xp-bar"></div></div>
             <div style="text-align: center; margin-top: 5px; font-size: 0.8em;">XP: <span id="xp">0</span> / <span id="next-xp">100</span></div>
+            <div style="text-align: center; margin-top: 5px; font-size: 0.9em; color: gold; text-shadow: 0 0 5px gold;">GOLD: <span id="gold">0</span></div>
             
             <h3 style="margin-top: 20px; font-size: 1em;">ATTRIBUTES <span id="stat-points-display" style="color:#00ff00; display:none;">(POINTS: <span id="stat-points">0</span>)</span></h3>
             <div class="grid-2">
@@ -161,10 +162,30 @@
         </div>
     </div>
 
+    <!-- TAB 3: SHOP -->
+    <div id="tab-shop" class="tab-content">
+        <div class="container">
+            <h2>[SYSTEM SHOP]</h2>
+            <p style="text-align: center; font-size: 0.9em; color: gold; text-shadow: 0 0 5px gold;">AVAILABLE GOLD: <span id="shop-gold">0</span></p>
+            
+            <ul class="quest-list">
+                <li class="quest-item">
+                    <span>Health Potion (Skip Penalty)</span>
+                    <button onclick="buyItem('potion', 500)">500G</button>
+                </li>
+                <li class="quest-item">
+                    <span>Crimson Theme</span>
+                    <button onclick="buyItem('theme_red', 1000)">1000G</button>
+                </li>
+            </ul>
+        </div>
+    </div>
+
     <!-- NAVIGATION BAR -->
     <div id="nav-bar">
         <button class="nav-btn active" onclick="switchTab('status')" id="nav-status">STATUS</button>
         <button class="nav-btn" onclick="switchTab('quests')" id="nav-quests">QUESTS</button>
+        <button class="nav-btn" onclick="switchTab('shop')" id="nav-shop">SHOP</button>
     </div>
 
     <script>
@@ -190,16 +211,21 @@
         }
 
         let player = {
-            level: 1, xp: 0, statPoints: 0,
+            level: 1, xp: 0, gold: 0, statPoints: 0,
             stats: { str: 10, vit: 10, agi: 10, int: 10, per: 10 },
             quests: { pushup: false, situp: false, squat: false, run: false, penalty: false },
             isPenalized: false,
             lastLogin: new Date().toDateString(),
-            dailyClaimed: false
+            dailyClaimed: false,
+            inventory: { potion: 0, theme_red: false }
         };
 
         if(localStorage.getItem('systemPlayer')) {
-            player = JSON.parse(localStorage.getItem('systemPlayer'));
+            const savedData = JSON.parse(localStorage.getItem('systemPlayer'));
+            player = { ...player, ...savedData };
+            // Ensure backwards compatibility with older saves that didn't have gold
+            if (player.gold === undefined) player.gold = 0;
+            if (player.inventory === undefined) player.inventory = { potion: 0, theme_red: false };
         }
 
         let pendingTaskId = "";
@@ -208,11 +234,15 @@
             if(player.quests[taskId]) return;
             pendingTaskId = taskId;
             
+            if (document.activeElement) {
+                document.activeElement.blur();
+            }
+            
             const cameraInput = document.getElementById('camera-input');
             if (taskId === 'run') {
-                cameraInput.removeAttribute('capture'); // Allows gallery upload for Strava SS
+                cameraInput.removeAttribute('capture'); 
             } else {
-                cameraInput.setAttribute('capture', 'environment'); // Forces live camera for workouts
+                cameraInput.setAttribute('capture', 'environment'); 
             }
             cameraInput.click();
         }
@@ -225,7 +255,6 @@
             const subText = document.getElementById('scanner-sub');
             overlay.style.display = "flex";
 
-            // --- OCR BRANCH (For 10km Run) ---
             if (pendingTaskId === 'run') {
                 document.getElementById('scanner-main').innerText = "[OCR SCAN ACTIVE]";
                 subText.innerText = "Initializing Optical Character Recognition...";
@@ -241,8 +270,6 @@
                     
                     overlay.style.display = "none";
                     const text = result.data.text.toLowerCase();
-                    
-                    // Validates distances like "10.00 km", "10 km", "11.5 km"
                     const runMatch = text.match(/1[0-9][\.\,]?\d*\s*(km|kilometers)/i);
 
                     if (runMatch) {
@@ -258,12 +285,11 @@
                     console.error(err);
                 } finally {
                     document.getElementById('camera-input').value = "";
-                    document.getElementById('scanner-main').innerText = "[SYSTEM VISION ACTIVE]"; // Reset UI
+                    document.getElementById('scanner-main').innerText = "[SYSTEM VISION ACTIVE]"; 
                 }
                 return;
             }
 
-            // --- VISION BRANCH (For Workouts) ---
             if (isModelLoading || !aiModel) {
                 subText.innerText = "System Vision initializing. Retrying in 1s...";
                 await new Promise(r => setTimeout(r, 1000));
@@ -275,7 +301,24 @@
             img.src = URL.createObjectURL(file);
             img.onload = async () => {
                 try {
-                    const predictions = await aiModel.detect(img);
+                    const canvas = document.createElement('canvas');
+                    const ctx = canvas.getContext('2d');
+                    
+                    const maxSize = 600;
+                    let width = img.width;
+                    let height = img.height;
+                    
+                    if (width > height) {
+                        if (width > maxSize) { height *= maxSize / width; width = maxSize; }
+                    } else {
+                        if (height > maxSize) { width *= maxSize / height; height = maxSize; }
+                    }
+                    
+                    canvas.width = width;
+                    canvas.height = height;
+                    ctx.drawImage(img, 0, 0, width, height);
+
+                    const predictions = await aiModel.detect(canvas);
                     overlay.style.display = "none";
 
                     const detectedPerson = predictions.find(p => p.class === 'person' && p.score >= 0.50);
@@ -290,7 +333,7 @@
                         }
                         saveData();
                     } else {
-                        alert("SYSTEM WARNING: FRAUD DETECTED.\nNo human subject detected in the image frame. The System rejects this attempt.");
+                        alert("SYSTEM WARNING: FRAUD DETECTED.\nNo human subject detected in the image frame.");
                     }
                 } catch (err) {
                     overlay.style.display = "none";
@@ -303,7 +346,6 @@
             };
         }
 
-        // Midnight Reset Logic
         function checkMidnightReset() {
             const today = new Date().toDateString();
             if(player.lastLogin !== today) {
@@ -331,8 +373,9 @@
                 player.dailyClaimed = true;
                 player.isPenalized = false;
                 player.xp += 100;
+                player.gold += 50;
                 checkLevelUp();
-                alert("SYSTEM MESSAGE: Daily Quest Complete. +100 XP.");
+                alert("SYSTEM MESSAGE: Daily Quest Complete. +100 XP, +50 Gold.");
                 saveData();
             } else {
                 alert("SYSTEM WARNING: All daily requirements must be verified first.");
@@ -351,6 +394,18 @@
             if(player.statPoints > 0) { player.stats[statName]++; player.statPoints--; saveData(); }
         }
 
+        function buyItem(item, cost) {
+            if (player.gold >= cost) {
+                player.gold -= cost;
+                if (item === 'potion') player.inventory.potion++;
+                if (item === 'theme_red') player.inventory.theme_red = true;
+                alert("SYSTEM MESSAGE: Purchase successful. Inventory updated.");
+                saveData();
+            } else {
+                alert("SYSTEM WARNING: Insufficient Gold.");
+            }
+        }
+
         function saveData() {
             localStorage.setItem('systemPlayer', JSON.stringify(player));
             updateUI();
@@ -359,6 +414,8 @@
         function updateUI() {
             document.getElementById('level').innerText = player.level;
             document.getElementById('xp').innerText = player.xp;
+            document.getElementById('gold').innerText = player.gold;
+            if (document.getElementById('shop-gold')) document.getElementById('shop-gold').innerText = player.gold;
             document.getElementById('next-xp').innerText = player.level * 100;
             document.getElementById('xp-bar').style.width = (player.xp / (player.level * 100)) * 100 + "%";
             ['str', 'vit', 'agi', 'int', 'per'].forEach(s => document.getElementById(s).innerText = player.stats[s]);
