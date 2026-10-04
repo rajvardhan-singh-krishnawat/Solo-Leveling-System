@@ -1,0 +1,406 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>The System</title>
+    <link rel="manifest" href="manifest.json">
+    
+    <!-- TensorFlow.js (COCO-SSD) for Object Detection -->
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/coco-ssd@latest"></script>
+    
+    <!-- Tesseract.js for Optical Character Recognition (OCR) -->
+    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@4/dist/tesseract.min.js"></script>
+
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap');
+
+        :root {
+            --system-blue: #00d2ff;
+            --system-dark: #050b14;
+            --system-panel: rgba(0, 30, 60, 0.85);
+            --system-border: #0088cc;
+            --system-red: #ff003c;
+        }
+
+        body {
+            background-color: var(--system-dark);
+            color: var(--system-blue);
+            font-family: 'Share Tech Mono', monospace;
+            margin: 0;
+            padding: 15px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-shadow: 0 0 5px var(--system-blue);
+            padding-bottom: 70px;
+        }
+
+        body.penalty-mode {
+            color: var(--system-red);
+            text-shadow: 0 0 5px var(--system-red);
+        }
+        body.penalty-mode .container {
+            border-color: var(--system-red);
+            box-shadow: 0 0 15px var(--system-red), inset 0 0 20px rgba(255, 0, 60, 0.2);
+            background: rgba(60, 0, 0, 0.85);
+        }
+        body.penalty-mode button:not(.nav-btn) {
+            color: var(--system-red);
+            border-color: var(--system-red);
+        }
+        body.penalty-mode button:not(.nav-btn):hover {
+            background: var(--system-red);
+            color: #000;
+            box-shadow: 0 0 10px var(--system-red);
+        }
+
+        .container {
+            width: 100%;
+            max-width: 450px;
+            background: var(--system-panel);
+            border: 2px solid var(--system-border);
+            border-radius: 8px;
+            padding: 15px;
+            box-sizing: border-box;
+            box-shadow: 0 0 15px var(--system-border), inset 0 0 20px rgba(0, 136, 204, 0.2);
+            margin-bottom: 20px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .container::before {
+            content: " "; display: block; position: absolute; top: 0; left: 0; bottom: 0; right: 0;
+            background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06));
+            z-index: 2; background-size: 100% 2px, 3px 100%; pointer-events: none;
+        }
+
+        h1, h2, h3 { text-align: center; margin-top: 0; text-transform: uppercase; letter-spacing: 2px; border-bottom: 1px solid currentColor; padding-bottom: 10px; }
+
+        .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        .stat-row { display: flex; justify-content: space-between; align-items: center; font-size: 1.1em; margin: 5px 0; }
+        .stat-btn { padding: 2px 8px; font-size: 0.9em; display: none; }
+
+        .quest-list { list-style: none; padding: 0; margin: 0; }
+        .quest-item { display: flex; justify-content: space-between; align-items: center; background: rgba(0, 210, 255, 0.1); margin: 10px 0; padding: 12px; border: 1px solid currentColor; border-radius: 5px; }
+        
+        .quest-item.penalty { background: rgba(255, 0, 60, 0.2); border-color: var(--system-red); color: var(--system-red); text-shadow: 0 0 5px var(--system-red); }
+
+        .quest-item.completed { background: rgba(0, 255, 0, 0.1) !important; border-color: #00ff00 !important; color: #00ff00 !important; text-shadow: 0 0 5px #00ff00 !important; }
+
+        button { background: transparent; color: inherit; border: 1px solid currentColor; padding: 8px 12px; font-family: inherit; cursor: pointer; text-transform: uppercase; transition: all 0.2s; position: relative; z-index: 3; }
+        button:hover { background: currentColor; color: var(--system-dark); box-shadow: 0 0 10px currentColor; }
+
+        .progress-bar { width: 100%; height: 12px; background: #000; border: 1px solid currentColor; margin-top: 10px; border-radius: 5px; }
+        .progress-fill { height: 100%; background: currentColor; width: 0%; transition: width 0.5s; box-shadow: 0 0 10px currentColor; }
+
+        .tab-content { display: none; width: 100%; max-width: 450px; }
+        .tab-content.active { display: block; }
+        
+        #nav-bar {
+            display: flex; justify-content: space-between; position: fixed; bottom: 0; left: 0; width: 100%;
+            background: var(--system-dark); border-top: 2px solid var(--system-border); padding: 10px; box-sizing: border-box; z-index: 10;
+        }
+        
+        .nav-btn { flex: 1; margin: 0 5px; text-align: center; border: 1px solid var(--system-border); color: var(--system-blue); }
+        .nav-btn.active { background: var(--system-blue); color: var(--system-dark); box-shadow: 0 0 10px var(--system-blue); font-weight: bold; }
+        
+        #scanner-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.92); z-index: 100; color: #00ff00; flex-direction: column; justify-content: center; align-items: center; font-size: 1.3em; text-shadow: 0 0 10px #00ff00; text-align: center; padding: 20px; box-sizing: border-box; }
+    </style>
+</head>
+<body>
+
+    <input type="file" accept="image/*" capture="environment" id="camera-input" style="display:none;" onchange="handleImageUpload(event)">
+    <audio id="alarm-sound" src="https://assets.mixkit.co/active_storage/sfx/995/995-preview.mp3" preload="auto"></audio>
+
+    <div id="scanner-overlay">
+        <div id="scanner-main">[SYSTEM VISION ACTIVE]</div>
+        <div id="scanner-sub" style="font-size: 0.6em; margin-top: 15px; color: #00d2ff;">Running neural network scan...</div>
+    </div>
+
+    <!-- TAB 1: STATUS -->
+    <div id="tab-status" class="tab-content active">
+        <div class="container">
+            <h1>[STATUS]</h1>
+            <div style="font-size: 1.5em; text-align: center;">LEVEL <span id="level">1</span></div>
+            <div class="progress-bar"><div class="progress-fill" id="xp-bar"></div></div>
+            <div style="text-align: center; margin-top: 5px; font-size: 0.8em;">XP: <span id="xp">0</span> / <span id="next-xp">100</span></div>
+            
+            <h3 style="margin-top: 20px; font-size: 1em;">ATTRIBUTES <span id="stat-points-display" style="color:#00ff00; display:none;">(POINTS: <span id="stat-points">0</span>)</span></h3>
+            <div class="grid-2">
+                <div class="stat-row"><span>STR:</span> <div><span id="str">10</span> <button class="stat-btn" onclick="addStat('str')">+</button></div></div>
+                <div class="stat-row"><span>VIT:</span> <div><span id="vit">10</span> <button class="stat-btn" onclick="addStat('vit')">+</button></div></div>
+                <div class="stat-row"><span>AGI:</span> <div><span id="agi">10</span> <button class="stat-btn" onclick="addStat('agi')">+</button></div></div>
+                <div class="stat-row"><span>INT:</span> <div><span id="int">10</span> <button class="stat-btn" onclick="addStat('int')">+</button></div></div>
+                <div class="stat-row"><span>PER:</span> <div><span id="per">10</span> <button class="stat-btn" onclick="addStat('per')">+</button></div></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- TAB 2: QUESTS -->
+    <div id="tab-quests" class="tab-content">
+        <div class="container">
+            <h2 id="quest-header">[DAILY QUEST]</h2>
+            <p id="penalty-warning" style="display: none; text-align: center; font-size: 0.9em; margin-bottom: 15px;">
+                WARNING: Daily Quest incomplete yesterday. The Penalty Zone demands satisfaction.
+            </p>
+            
+            <ul class="quest-list">
+                <li class="quest-item penalty" id="q-penalty" style="display: none;">
+                    <span>Penalty: 100 Burpees</span>
+                    <button onclick="triggerVerification('penalty')">AI Scan</button>
+                </li>
+                
+                <li class="quest-item" id="q-pushup"><span>Push-ups: 0 / 100</span><button onclick="triggerVerification('pushup')">AI Scan</button></li>
+                <li class="quest-item" id="q-situp"><span>Sit-ups: 0 / 100</span><button onclick="triggerVerification('situp')">AI Scan</button></li>
+                <li class="quest-item" id="q-squat"><span>Squats: 0 / 100</span><button onclick="triggerVerification('squat')">AI Scan</button></li>
+                <li class="quest-item" id="q-run"><span>Running: 0 / 10km</span><button onclick="triggerVerification('run')">OCR Scan</button></li>
+            </ul>
+            <button style="width: 100%; margin-top: 10px;" onclick="claimDaily()" id="claim-btn">CLAIM REWARDS</button>
+        </div>
+    </div>
+
+    <!-- NAVIGATION BAR -->
+    <div id="nav-bar">
+        <button class="nav-btn active" onclick="switchTab('status')" id="nav-status">STATUS</button>
+        <button class="nav-btn" onclick="switchTab('quests')" id="nav-quests">QUESTS</button>
+    </div>
+
+    <script>
+        // System State
+        let aiModel = null;
+        let isModelLoading = true;
+
+        // Initialize COCO-SSD Vision Model
+        cocoSsd.load().then(model => {
+            aiModel = model;
+            isModelLoading = false;
+            console.log("System Vision Engine Loaded.");
+        }).catch(err => {
+            console.error("AI Model Initialization Failure:", err);
+            isModelLoading = false;
+        });
+
+        function switchTab(tabId) {
+            document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));
+            document.querySelectorAll('.nav-btn').forEach(btn => btn.classList.remove('active'));
+            document.getElementById('tab-' + tabId).classList.add('active');
+            document.getElementById('nav-' + tabId).classList.add('active');
+        }
+
+        let player = {
+            level: 1, xp: 0, statPoints: 0,
+            stats: { str: 10, vit: 10, agi: 10, int: 10, per: 10 },
+            quests: { pushup: false, situp: false, squat: false, run: false, penalty: false },
+            isPenalized: false,
+            lastLogin: new Date().toDateString(),
+            dailyClaimed: false
+        };
+
+        if(localStorage.getItem('systemPlayer')) {
+            player = JSON.parse(localStorage.getItem('systemPlayer'));
+        }
+
+        let pendingTaskId = "";
+
+        function triggerVerification(taskId) {
+            if(player.quests[taskId]) return;
+            pendingTaskId = taskId;
+            
+            const cameraInput = document.getElementById('camera-input');
+            if (taskId === 'run') {
+                cameraInput.removeAttribute('capture'); // Allows gallery upload for Strava SS
+            } else {
+                cameraInput.setAttribute('capture', 'environment'); // Forces live camera for workouts
+            }
+            cameraInput.click();
+        }
+
+        async function handleImageUpload(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const overlay = document.getElementById('scanner-overlay');
+            const subText = document.getElementById('scanner-sub');
+            overlay.style.display = "flex";
+
+            // --- OCR BRANCH (For 10km Run) ---
+            if (pendingTaskId === 'run') {
+                document.getElementById('scanner-main').innerText = "[OCR SCAN ACTIVE]";
+                subText.innerText = "Initializing Optical Character Recognition...";
+
+                try {
+                    const result = await Tesseract.recognize(file, 'eng', {
+                        logger: m => {
+                            if (m.status === 'recognizing text') {
+                                subText.innerText = `Parsing Document Data: ${Math.round(m.progress * 100)}%`;
+                            }
+                        }
+                    });
+                    
+                    overlay.style.display = "none";
+                    const text = result.data.text.toLowerCase();
+                    
+                    // Validates distances like "10.00 km", "10 km", "11.5 km"
+                    const runMatch = text.match(/1[0-9][\.\,]?\d*\s*(km|kilometers)/i);
+
+                    if (runMatch) {
+                        alert("SYSTEM VERIFIED: 10km Run confirmed in log.\nQuest marked complete.");
+                        player.quests.run = true;
+                        saveData();
+                    } else {
+                        alert("SYSTEM WARNING: FRAUD DETECTED.\nThe System could not verify a 10km run in this document.");
+                    }
+                } catch(err) {
+                    overlay.style.display = "none";
+                    alert("SYSTEM ERROR: OCR inference failure.");
+                    console.error(err);
+                } finally {
+                    document.getElementById('camera-input').value = "";
+                    document.getElementById('scanner-main').innerText = "[SYSTEM VISION ACTIVE]"; // Reset UI
+                }
+                return;
+            }
+
+            // --- VISION BRANCH (For Workouts) ---
+            if (isModelLoading || !aiModel) {
+                subText.innerText = "System Vision initializing. Retrying in 1s...";
+                await new Promise(r => setTimeout(r, 1000));
+            }
+
+            subText.innerText = "Processing image tensor and detecting subjects...";
+
+            const img = new Image();
+            img.src = URL.createObjectURL(file);
+            img.onload = async () => {
+                try {
+                    const predictions = await aiModel.detect(img);
+                    overlay.style.display = "none";
+
+                    const detectedPerson = predictions.find(p => p.class === 'person' && p.score >= 0.50);
+
+                    if (detectedPerson) {
+                        alert(`SYSTEM VERIFIED: Human presence confirmed (${Math.round(detectedPerson.score * 100)}% match).\nQuest marked complete.`);
+                        player.quests[pendingTaskId] = true;
+                        
+                        if (pendingTaskId === 'penalty') {
+                            player.isPenalized = false;
+                            alert("SYSTEM MESSAGE: You have survived the Penalty Zone. Restoring normal environment.");
+                        }
+                        saveData();
+                    } else {
+                        alert("SYSTEM WARNING: FRAUD DETECTED.\nNo human subject detected in the image frame. The System rejects this attempt.");
+                    }
+                } catch (err) {
+                    overlay.style.display = "none";
+                    alert("SYSTEM ERROR: Vision inference failure.");
+                    console.error(err);
+                } finally {
+                    document.getElementById('camera-input').value = "";
+                    URL.revokeObjectURL(img.src);
+                }
+            };
+        }
+
+        // Midnight Reset Logic
+        function checkMidnightReset() {
+            const today = new Date().toDateString();
+            if(player.lastLogin !== today) {
+                if(!player.dailyClaimed && !player.isPenalized) {
+                    player.isPenalized = true;
+                    document.getElementById('alarm-sound').play().catch(() => {});
+                    alert("SYSTEM ALARM: YOU FAILED YESTERDAY'S QUEST.\nPenalty Zone activated. Punishment: 100 Burpees.");
+                }
+                player.quests = { pushup: false, situp: false, squat: false, run: false, penalty: !player.isPenalized };
+                player.dailyClaimed = false;
+                player.lastLogin = today;
+                saveData();
+            }
+        }
+
+        function claimDaily() {
+            let requirementsMet = player.quests.pushup && player.quests.situp && player.quests.squat && player.quests.run;
+            
+            if(player.isPenalized && !player.quests.penalty) {
+                return alert("SYSTEM WARNING: Complete the Penalty Quest (100 Burpees) first.");
+            }
+
+            if(requirementsMet) {
+                if(player.dailyClaimed) return alert("Already claimed today.");
+                player.dailyClaimed = true;
+                player.isPenalized = false;
+                player.xp += 100;
+                checkLevelUp();
+                alert("SYSTEM MESSAGE: Daily Quest Complete. +100 XP.");
+                saveData();
+            } else {
+                alert("SYSTEM WARNING: All daily requirements must be verified first.");
+            }
+        }
+
+        function checkLevelUp() {
+            let nextXp = player.level * 100;
+            if(player.xp >= nextXp) {
+                player.level++; player.xp -= nextXp; player.statPoints += 3;
+                alert(`LEVEL UP! You are now Level ${player.level}. 3 Stat Points awarded.`);
+            }
+        }
+
+        function addStat(statName) {
+            if(player.statPoints > 0) { player.stats[statName]++; player.statPoints--; saveData(); }
+        }
+
+        function saveData() {
+            localStorage.setItem('systemPlayer', JSON.stringify(player));
+            updateUI();
+        }
+
+        function updateUI() {
+            document.getElementById('level').innerText = player.level;
+            document.getElementById('xp').innerText = player.xp;
+            document.getElementById('next-xp').innerText = player.level * 100;
+            document.getElementById('xp-bar').style.width = (player.xp / (player.level * 100)) * 100 + "%";
+            ['str', 'vit', 'agi', 'int', 'per'].forEach(s => document.getElementById(s).innerText = player.stats[s]);
+
+            let statBtns = document.getElementsByClassName('stat-btn');
+            if(player.statPoints > 0) {
+                document.getElementById('stat-points-display').style.display = "inline";
+                document.getElementById('stat-points').innerText = player.statPoints;
+                for(let btn of statBtns) btn.style.display = "inline-block";
+            } else {
+                document.getElementById('stat-points-display').style.display = "none";
+                for(let btn of statBtns) btn.style.display = "none";
+            }
+
+            if(player.isPenalized) {
+                document.body.classList.add('penalty-mode');
+                document.getElementById('quest-header').innerText = "[PENALTY ZONE ACTIVE]";
+                document.getElementById('penalty-warning').style.display = "block";
+                document.getElementById('q-penalty').style.display = "flex";
+            } else {
+                document.body.classList.remove('penalty-mode');
+                document.getElementById('quest-header').innerText = "[DAILY QUEST]";
+                document.getElementById('penalty-warning').style.display = "none";
+                document.getElementById('q-penalty').style.display = "none";
+            }
+
+            ['pushup', 'situp', 'squat', 'run', 'penalty'].forEach(t => {
+                const el = document.getElementById(`q-${t}`);
+                if(el && player.quests[t]) {
+                    el.classList.add('completed');
+                    const btn = el.querySelector('button');
+                    if (btn) btn.style.display = "none";
+                    if(el.innerHTML.includes(' 0 /')) {
+                        el.innerHTML = el.innerHTML.replace(' 0 /', ' MAX /') + " <span>[DONE]</span>";
+                    }
+                }
+            });
+        }
+
+        checkMidnightReset();
+        updateUI();
+        if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js');
+    </script>
+</body>
+</html>
