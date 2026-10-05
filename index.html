@@ -6,9 +6,11 @@
     <title>The System</title>
     <link rel="manifest" href="manifest.json">
     
-    <!-- TensorFlow.js (COCO-SSD) for Object Detection -->
-    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/coco-ssd@latest"></script>
+    <!-- TensorFlow.js and MoveNet Pose Detection -->
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-core"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-converter"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-backend-webgl"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/pose-detection"></script>
     
     <!-- Tesseract.js for Optical Character Recognition (OCR) -->
     <script src="https://cdn.jsdelivr.net/npm/tesseract.js@4/dist/tesseract.min.js"></script>
@@ -17,96 +19,103 @@
         @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap');
 
         :root {
-            --system-blue: #00d2ff;
+            --system-main: #00d2ff;
             --system-dark: #050b14;
-            --system-panel: rgba(0, 30, 60, 0.85);
-            --system-border: #0088cc;
+            --system-panel: rgba(0, 20, 40, 0.65);
+            --system-border: rgba(0, 136, 204, 0.6);
             --system-red: #ff003c;
+            --system-green: #00ff00;
+        }
+
+        body.theme-crimson {
+            --system-main: #ff3366;
+            --system-panel: rgba(40, 5, 15, 0.65);
+            --system-border: rgba(204, 0, 51, 0.6);
         }
 
         body {
-            background-color: var(--system-dark);
-            color: var(--system-blue);
+            background: linear-gradient(135deg, #02050a 0%, #0a1526 100%);
+            color: var(--system-main);
             font-family: 'Share Tech Mono', monospace;
-            margin: 0;
-            padding: 15px;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            text-shadow: 0 0 5px var(--system-blue);
-            padding-bottom: 70px;
+            margin: 0; padding: 15px; display: flex; flex-direction: column;
+            align-items: center; text-shadow: 0 0 5px var(--system-main);
+            padding-bottom: 70px; min-height: 100vh; box-sizing: border-box;
+            transition: all 0.3s ease; overflow-x: hidden;
         }
 
         body.penalty-mode {
-            color: var(--system-red);
-            text-shadow: 0 0 5px var(--system-red);
-        }
-        body.penalty-mode .container {
-            border-color: var(--system-red);
-            box-shadow: 0 0 15px var(--system-red), inset 0 0 20px rgba(255, 0, 60, 0.2);
-            background: rgba(60, 0, 0, 0.85);
-        }
-        body.penalty-mode button:not(.nav-btn) {
-            color: var(--system-red);
-            border-color: var(--system-red);
-        }
-        body.penalty-mode button:not(.nav-btn):hover {
-            background: var(--system-red);
-            color: #000;
-            box-shadow: 0 0 10px var(--system-red);
+            background: linear-gradient(135deg, #1a0000 0%, #33000a 100%);
+            color: var(--system-red); text-shadow: 0 0 5px var(--system-red);
         }
 
         .container {
-            width: 100%;
-            max-width: 450px;
+            width: 100%; max-width: 450px;
             background: var(--system-panel);
-            border: 2px solid var(--system-border);
-            border-radius: 8px;
-            padding: 15px;
-            box-sizing: border-box;
-            box-shadow: 0 0 15px var(--system-border), inset 0 0 20px rgba(0, 136, 204, 0.2);
-            margin-bottom: 20px;
-            position: relative;
-            overflow: hidden;
+            backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+            border: 1px solid var(--system-border);
+            border-radius: 8px; padding: 15px; box-sizing: border-box;
+            box-shadow: 0 0 20px rgba(0,0,0,0.5), inset 0 0 15px rgba(255,255,255,0.05);
+            margin-bottom: 20px; position: relative; overflow: hidden;
+            transition: all 0.3s ease;
         }
 
         .container::before {
             content: " "; display: block; position: absolute; top: 0; left: 0; bottom: 0; right: 0;
-            background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06));
-            z-index: 2; background-size: 100% 2px, 3px 100%; pointer-events: none;
+            background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.15) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.03), rgba(0, 255, 0, 0.01), rgba(0, 0, 255, 0.03));
+            z-index: 2; background-size: 100% 3px, 4px 100%; pointer-events: none; opacity: 0.5;
         }
 
-        h1, h2, h3 { text-align: center; margin-top: 0; text-transform: uppercase; letter-spacing: 2px; border-bottom: 1px solid currentColor; padding-bottom: 10px; }
+        h1, h2, h3 { text-align: center; margin-top: 0; text-transform: uppercase; letter-spacing: 2px; border-bottom: 1px solid rgba(255,255,255,0.2); padding-bottom: 10px; }
 
-        .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-        .stat-row { display: flex; justify-content: space-between; align-items: center; font-size: 1.1em; margin: 5px 0; }
-        .stat-btn { padding: 2px 8px; font-size: 0.9em; display: none; }
+        .stat-row { display: flex; align-items: center; font-size: 1.1em; margin: 10px 0; }
+        .stat-label { width: 45px; }
+        .stat-bar-bg { flex-grow: 1; height: 10px; background: rgba(0,0,0,0.6); border: 1px solid var(--system-main); margin: 0 10px; border-radius: 2px; position: relative; }
+        .stat-bar-fill { height: 100%; background: var(--system-main); box-shadow: 0 0 8px var(--system-main); width: 0%; transition: width 0.5s ease-out; }
+        .stat-controls { width: 60px; text-align: right; }
+        .stat-btn { padding: 2px 6px; font-size: 0.8em; display: none; margin-left: 5px; }
 
         .quest-list { list-style: none; padding: 0; margin: 0; }
-        .quest-item { display: flex; justify-content: space-between; align-items: center; background: rgba(0, 210, 255, 0.1); margin: 10px 0; padding: 12px; border: 1px solid currentColor; border-radius: 5px; }
-        
-        .quest-item.penalty { background: rgba(255, 0, 60, 0.2); border-color: var(--system-red); color: var(--system-red); text-shadow: 0 0 5px var(--system-red); }
+        .quest-item { display: flex; justify-content: space-between; align-items: center; background: rgba(0, 0, 0, 0.4); margin: 10px 0; padding: 12px; border: 1px solid var(--system-border); border-radius: 5px; backdrop-filter: blur(5px); }
+        .quest-item.penalty { background: rgba(255, 0, 60, 0.15); border-color: var(--system-red); color: var(--system-red); }
+        .quest-item.completed { background: rgba(0, 255, 0, 0.1) !important; border-color: var(--system-green) !important; color: var(--system-green) !important; text-shadow: 0 0 5px var(--system-green) !important; }
 
-        .quest-item.completed { background: rgba(0, 255, 0, 0.1) !important; border-color: #00ff00 !important; color: #00ff00 !important; text-shadow: 0 0 5px #00ff00 !important; }
+        button { background: rgba(0,0,0,0.5); color: inherit; border: 1px solid currentColor; padding: 8px 12px; font-family: inherit; cursor: pointer; text-transform: uppercase; transition: all 0.2s; position: relative; z-index: 3; border-radius: 4px; }
+        button:hover { background: currentColor; color: var(--system-dark); box-shadow: 0 0 15px currentColor; }
 
-        button { background: transparent; color: inherit; border: 1px solid currentColor; padding: 8px 12px; font-family: inherit; cursor: pointer; text-transform: uppercase; transition: all 0.2s; position: relative; z-index: 3; }
-        button:hover { background: currentColor; color: var(--system-dark); box-shadow: 0 0 10px currentColor; }
+        .progress-bar { width: 100%; height: 14px; background: rgba(0,0,0,0.8); border: 1px solid currentColor; margin-top: 10px; border-radius: 3px; position: relative; }
+        .progress-fill { height: 100%; background: currentColor; width: 0%; transition: width 0.5s; box-shadow: 0 0 12px currentColor; }
 
-        .progress-bar { width: 100%; height: 12px; background: #000; border: 1px solid currentColor; margin-top: 10px; border-radius: 5px; }
-        .progress-fill { height: 100%; background: currentColor; width: 0%; transition: width 0.5s; box-shadow: 0 0 10px currentColor; }
-
-        .tab-content { display: none; width: 100%; max-width: 450px; }
+        .tab-content { display: none; width: 100%; max-width: 450px; animation: fadeIn 0.3s; }
         .tab-content.active { display: block; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
         
-        #nav-bar {
-            display: flex; justify-content: space-between; position: fixed; bottom: 0; left: 0; width: 100%;
-            background: var(--system-dark); border-top: 2px solid var(--system-border); padding: 10px; box-sizing: border-box; z-index: 10;
+        #nav-bar { display: flex; justify-content: space-between; position: fixed; bottom: 0; left: 0; width: 100%; background: rgba(5, 11, 20, 0.9); backdrop-filter: blur(10px); border-top: 1px solid var(--system-border); padding: 10px; box-sizing: border-box; z-index: 10; }
+        .nav-btn { flex: 1; margin: 0 5px; text-align: center; border: 1px solid transparent; color: rgba(255,255,255,0.5); padding: 10px 5px; font-size: 0.9em; transition: all 0.3s ease; background: transparent; }
+        .nav-btn.active { color: var(--system-main); border-bottom: 2px solid var(--system-main); text-shadow: 0 0 8px var(--system-main); }
+        
+        #scanner-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.95); z-index: 100; color: var(--system-green); flex-direction: column; justify-content: center; align-items: center; font-size: 1.3em; text-shadow: 0 0 10px var(--system-green); text-align: center; padding: 20px; box-sizing: border-box; }
+
+        #voice-btn { position: fixed; bottom: 75px; right: 20px; width: 50px; height: 50px; border-radius: 50%; background: rgba(0,0,0,0.8); border: 2px solid var(--system-main); color: var(--system-main); font-size: 1.5em; display: flex; justify-content: center; align-items: center; z-index: 50; box-shadow: 0 0 15px rgba(0,210,255,0.3); backdrop-filter: blur(5px); transition: all 0.3s; }
+        #voice-btn.listening { border-color: var(--system-red); color: var(--system-red); box-shadow: 0 0 20px var(--system-red); animation: pulse 1s infinite; }
+        @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.1); } 100% { transform: scale(1); } }
+
+        /* Custom System Modals */
+        #system-modal {
+            position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%) scale(0.9);
+            width: 85%; max-width: 350px; background: rgba(5, 10, 15, 0.95);
+            border: 2px solid var(--system-main); z-index: 1000;
+            padding: 25px; text-align: center; color: var(--system-main);
+            box-shadow: 0 0 30px rgba(0, 210, 255, 0.4); border-radius: 8px;
+            opacity: 0; pointer-events: none; transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            backdrop-filter: blur(15px);
         }
+        #system-modal.active { opacity: 1; pointer-events: auto; transform: translate(-50%, -50%) scale(1); }
+        #system-modal.critical { border-color: var(--system-red); color: var(--system-red); box-shadow: 0 0 40px rgba(255,0,60,0.5); }
+        #modal-overlay { position: fixed; top:0; left:0; width:100%; height:100%; background: rgba(0,0,0,0.8); z-index: 999; opacity: 0; pointer-events: none; transition: opacity 0.3s; }
+        #modal-overlay.active { opacity: 1; pointer-events: auto; }
         
-        .nav-btn { flex: 1; margin: 0 5px; text-align: center; border: 1px solid var(--system-border); color: var(--system-blue); padding: 10px 5px; font-size: 0.9em; }
-        .nav-btn.active { background: var(--system-blue); color: var(--system-dark); box-shadow: 0 0 10px var(--system-blue); font-weight: bold; }
-        
-        #scanner-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.92); z-index: 100; color: #00ff00; flex-direction: column; justify-content: center; align-items: center; font-size: 1.3em; text-shadow: 0 0 10px #00ff00; text-align: center; padding: 20px; box-sizing: border-box; }
+        .timer-display { font-size: 1.4em; text-align: center; margin-bottom: 15px; color: var(--system-main); font-weight: bold; letter-spacing: 1px; }
+        body.penalty-mode .timer-display { color: var(--system-red); text-shadow: 0 0 10px var(--system-red); }
     </style>
 </head>
 <body>
@@ -116,25 +125,34 @@
 
     <div id="scanner-overlay">
         <div id="scanner-main">[SYSTEM VISION ACTIVE]</div>
-        <div id="scanner-sub" style="font-size: 0.6em; margin-top: 15px; color: #00d2ff;">Running neural network scan...</div>
+        <div id="scanner-sub" style="font-size: 0.6em; margin-top: 15px; color: #00d2ff;">Establishing Neural Link...</div>
+    </div>
+
+    <!-- CUSTOM MODAL UI -->
+    <div id="modal-overlay"></div>
+    <div id="system-modal">
+        <h3 id="modal-title" style="margin-bottom: 15px;">[ALERT]</h3>
+        <p id="modal-msg" style="margin-bottom: 20px; font-size: 0.9em; line-height: 1.4;"></p>
+        <button onclick="closeModal()" style="width: 100%;">ACKNOWLEDGE</button>
     </div>
 
     <!-- TAB 1: STATUS -->
     <div id="tab-status" class="tab-content active">
         <div class="container">
             <h1>[STATUS]</h1>
-            <div style="font-size: 1.5em; text-align: center;">LEVEL <span id="level">1</span></div>
+            <div style="font-size: 1.5em; text-align: center; margin-bottom: 5px;">LEVEL <span id="level">1</span></div>
+            <div style="text-align: center; font-size: 0.9em; color: rgba(255,255,255,0.7);">Class: <span id="player-title" style="color: var(--system-main); text-shadow: none;">The Awakened</span></div>
+            
             <div class="progress-bar"><div class="progress-fill" id="xp-bar"></div></div>
             <div style="text-align: center; margin-top: 5px; font-size: 0.8em;">XP: <span id="xp">0</span> / <span id="next-xp">100</span></div>
-            <div style="text-align: center; margin-top: 5px; font-size: 0.9em; color: gold; text-shadow: 0 0 5px gold;">GOLD: <span id="gold">0</span></div>
+            <div style="text-align: center; margin-top: 10px; font-size: 1.1em; color: gold; text-shadow: 0 0 5px rgba(255,215,0,0.5);">GOLD: <span id="gold">0</span></div>
             
-            <h3 style="margin-top: 20px; font-size: 1em;">ATTRIBUTES <span id="stat-points-display" style="color:#00ff00; display:none;">(POINTS: <span id="stat-points">0</span>)</span></h3>
-            <div class="grid-2">
-                <div class="stat-row"><span>STR:</span> <div><span id="str">10</span> <button class="stat-btn" onclick="addStat('str')">+</button></div></div>
-                <div class="stat-row"><span>VIT:</span> <div><span id="vit">10</span> <button class="stat-btn" onclick="addStat('vit')">+</button></div></div>
-                <div class="stat-row"><span>AGI:</span> <div><span id="agi">10</span> <button class="stat-btn" onclick="addStat('agi')">+</button></div></div>
-                <div class="stat-row"><span>INT:</span> <div><span id="int">10</span> <button class="stat-btn" onclick="addStat('int')">+</button></div></div>
-                <div class="stat-row"><span>PER:</span> <div><span id="per">10</span> <button class="stat-btn" onclick="addStat('per')">+</button></div></div>
+            <h3 style="margin-top: 25px; font-size: 1em;">ATTRIBUTES <span id="stat-points-display" style="color:var(--system-green); display:none; font-size: 0.8em;">(PTS: <span id="stat-points">0</span>)</span></h3>
+            
+            <div id="stat-container"></div>
+            
+            <div style="margin-top: 20px; text-align: center; font-size: 0.8em; padding-top: 15px; border-top: 1px solid rgba(255,255,255,0.1);">
+                INVENTORY: <span id="potion-count" style="color: var(--system-green);">0</span>x Health Potion
             </div>
         </div>
     </div>
@@ -143,22 +161,24 @@
     <div id="tab-quests" class="tab-content">
         <div class="container">
             <h2 id="quest-header">[DAILY QUEST]</h2>
-            <p id="penalty-warning" style="display: none; text-align: center; font-size: 0.9em; margin-bottom: 15px;">
-                WARNING: Daily Quest incomplete yesterday. The Penalty Zone demands satisfaction.
-            </p>
+            <div class="timer-display" id="countdown-timer">[TIME REMAINING: 00:00:00]</div>
+            
+            <div id="penalty-warning" style="display: none; flex-direction: column; align-items: center; margin-bottom: 15px; background: rgba(255,0,0,0.1); padding: 10px; border-radius: 5px; border: 1px solid var(--system-red);">
+                <p style="text-align: center; font-size: 0.85em; margin: 0 0 10px 0;">WARNING: The Penalty Zone demands satisfaction.</p>
+                <button id="use-potion-btn" onclick="usePotion()" style="border-color: var(--system-green); color: var(--system-green); width: 100%;">DRINK POTION</button>
+            </div>
             
             <ul class="quest-list">
                 <li class="quest-item penalty" id="q-penalty" style="display: none;">
                     <span>Penalty: 100 Burpees</span>
-                    <button onclick="triggerVerification('penalty')">AI Scan</button>
+                    <button onclick="triggerVerification('penalty')">SCAN</button>
                 </li>
-                
-                <li class="quest-item" id="q-pushup"><span>Push-ups: 0 / 100</span><button onclick="triggerVerification('pushup')">AI Scan</button></li>
-                <li class="quest-item" id="q-situp"><span>Sit-ups: 0 / 100</span><button onclick="triggerVerification('situp')">AI Scan</button></li>
-                <li class="quest-item" id="q-squat"><span>Squats: 0 / 100</span><button onclick="triggerVerification('squat')">AI Scan</button></li>
-                <li class="quest-item" id="q-run"><span>Running: 0 / 10km</span><button onclick="triggerVerification('run')">OCR Scan</button></li>
+                <li class="quest-item" id="q-pushup"><span>Push-ups: 0 / 100</span><button onclick="triggerVerification('pushup')">SCAN</button></li>
+                <li class="quest-item" id="q-crunch"><span>Crunches: 0 / 100</span><button onclick="triggerVerification('crunch')">SCAN</button></li>
+                <li class="quest-item" id="q-squat"><span>Squats: 0 / 100</span><button onclick="triggerVerification('squat')">SCAN</button></li>
+                <li class="quest-item" id="q-steps"><span>Steps: 0 / 10,000</span><button onclick="triggerVerification('steps')">OCR</button></li>
             </ul>
-            <button style="width: 100%; margin-top: 10px;" onclick="claimDaily()" id="claim-btn">CLAIM REWARDS</button>
+            <button style="width: 100%; margin-top: 15px; padding: 12px; font-weight: bold; letter-spacing: 1px;" onclick="claimDaily()" id="claim-btn">CLAIM REWARDS</button>
         </div>
     </div>
 
@@ -166,22 +186,29 @@
     <div id="tab-shop" class="tab-content">
         <div class="container">
             <h2>[SYSTEM SHOP]</h2>
-            <p style="text-align: center; font-size: 0.9em; color: gold; text-shadow: 0 0 5px gold;">AVAILABLE GOLD: <span id="shop-gold">0</span></p>
+            <p style="text-align: center; font-size: 1em; color: gold; margin-bottom: 20px;">FUNDS: <span id="shop-gold">0</span> G</p>
             
             <ul class="quest-list">
                 <li class="quest-item">
-                    <span>Health Potion (Skip Penalty)</span>
+                    <div style="flex-grow: 1;">
+                        <span style="display: block; font-weight: bold;">Health Potion</span>
+                        <span style="font-size: 0.7em; color: rgba(255,255,255,0.6);">Instantly bypass Penalty Zone.</span>
+                    </div>
                     <button onclick="buyItem('potion', 500)">500G</button>
                 </li>
                 <li class="quest-item">
-                    <span>Crimson Theme</span>
-                    <button onclick="buyItem('theme_red', 1000)">1000G</button>
+                    <div style="flex-grow: 1;">
+                        <span style="display: block; font-weight: bold; color: #ff3366;">Crimson Theme</span>
+                        <span style="font-size: 0.7em; color: rgba(255,255,255,0.6);">Monarch Aura UI Override.</span>
+                    </div>
+                    <button id="btn-theme-red" onclick="handleThemePurchase('theme_red', 1000)">1000G</button>
                 </li>
             </ul>
         </div>
     </div>
 
-    <!-- NAVIGATION BAR -->
+    <button id="voice-btn" onclick="toggleVoice()">🎙️</button>
+
     <div id="nav-bar">
         <button class="nav-btn active" onclick="switchTab('status')" id="nav-status">STATUS</button>
         <button class="nav-btn" onclick="switchTab('quests')" id="nav-quests">QUESTS</button>
@@ -189,23 +216,88 @@
     </div>
 
     <script>
-        // System State
+        function showModal(title, msg, type = 'info') {
+            const modal = document.getElementById('system-modal');
+            const overlay = document.getElementById('modal-overlay');
+            document.getElementById('modal-title').innerText = title;
+            document.getElementById('modal-msg').innerText = msg;
+            
+            if(type === 'critical') {
+                modal.classList.add('critical');
+                document.getElementById('modal-title').style.color = "var(--system-red)";
+            } else {
+                modal.classList.remove('critical');
+                document.getElementById('modal-title').style.color = "inherit";
+            }
+            overlay.classList.add('active');
+            modal.classList.add('active');
+        }
+
+        function closeModal() {
+            document.getElementById('system-modal').classList.remove('active');
+            document.getElementById('modal-overlay').classList.remove('active');
+        }
+
+        function updateTimer() {
+            const now = new Date();
+            const tomorrow = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
+            const diff = tomorrow - now;
+            
+            const h = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+            const m = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+            const s = Math.floor((diff % (1000 * 60)) / 1000);
+            
+            document.getElementById('countdown-timer').innerText = `[T-MINUS: ${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}]`;
+        }
+        setInterval(updateTimer, 1000);
+        updateTimer();
+
         let aiModel = null;
         let isModelLoading = true;
 
-        // Initialize COCO-SSD Vision Model
-        cocoSsd.load().then(model => {
-            aiModel = model;
-            isModelLoading = false;
-            console.log("System Vision Engine Loaded.");
-        }).catch(err => {
-            console.error("AI Model Initialization Failure:", err);
-            isModelLoading = false;
-        });
+        async function initSystemVision() {
+            try {
+                await tf.setBackend('webgl');
+                await tf.ready();
+                const detectorConfig = { modelType: poseDetection.movenet.modelType.SINGLEPOSE_LIGHTNING };
+                aiModel = await poseDetection.createDetector(poseDetection.SupportedModels.MoveNet, detectorConfig);
+                isModelLoading = false;
+            } catch (err) { console.error(err); isModelLoading = false; }
+        }
+        initSystemVision();
+
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        let recognition = null;
+        let isListening = false;
+
+        if (SpeechRecognition) {
+            recognition = new SpeechRecognition();
+            recognition.continuous = false;
+            recognition.lang = 'en-US';
+            recognition.onstart = () => { isListening = true; document.getElementById('voice-btn').classList.add('listening'); };
+            recognition.onresult = (e) => processVoiceCommand(e.results[0][0].transcript.toLowerCase());
+            recognition.onend = () => { isListening = false; document.getElementById('voice-btn').classList.remove('listening'); };
+        }
+
+        function toggleVoice() {
+            if (!recognition) return showModal("[SYSTEM ERROR]", "Voice interface not supported.", "critical");
+            isListening ? recognition.stop() : recognition.start();
+        }
+
+        function processVoiceCommand(cmd) {
+            if (cmd.includes('status')) switchTab('status');
+            else if (cmd.includes('quest')) switchTab('quests');
+            else if (cmd.includes('shop')) switchTab('shop');
+            else if (cmd.includes('claim')) claimDaily();
+            else if (cmd.includes('push')) triggerVerification('pushup');
+            else if (cmd.includes('crunch')) triggerVerification('crunch');
+            else if (cmd.includes('squat')) triggerVerification('squat');
+            else if (cmd.includes('step')) triggerVerification('steps');
+        }
 
         function switchTab(tabId) {
-            document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));
-            document.querySelectorAll('.nav-btn').forEach(btn => btn.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
             document.getElementById('tab-' + tabId).classList.add('active');
             document.getElementById('nav-' + tabId).classList.add('active');
         }
@@ -213,136 +305,116 @@
         let player = {
             level: 1, xp: 0, gold: 0, statPoints: 0,
             stats: { str: 10, vit: 10, agi: 10, int: 10, per: 10 },
-            quests: { pushup: false, situp: false, squat: false, run: false, penalty: false },
-            isPenalized: false,
-            lastLogin: new Date().toDateString(),
-            dailyClaimed: false,
-            inventory: { potion: 0, theme_red: false }
+            quests: { pushup: false, crunch: false, squat: false, steps: false, penalty: false },
+            isPenalized: false, lastLogin: new Date().toDateString(), dailyClaimed: false,
+            inventory: { potion: 0, theme_red: false }, activeTheme: 'default'
         };
 
         if(localStorage.getItem('systemPlayer')) {
             const savedData = JSON.parse(localStorage.getItem('systemPlayer'));
             player = { ...player, ...savedData };
-            // Ensure backwards compatibility with older saves that didn't have gold
+            
+            if (player.quests.situp !== undefined && player.quests.crunch === undefined) { player.quests.crunch = player.quests.situp; delete player.quests.situp; }
+            if (player.quests.run !== undefined && player.quests.steps === undefined) { player.quests.steps = player.quests.run; delete player.quests.run; }
             if (player.gold === undefined) player.gold = 0;
             if (player.inventory === undefined) player.inventory = { potion: 0, theme_red: false };
+            if (player.activeTheme === undefined) player.activeTheme = 'default';
+        }
+
+        function getPlayerTitle(level) {
+            if (level >= 20) return "Monarch of Shadows";
+            if (level >= 10) return "Elite Hunter";
+            if (level >= 5) return "Code Hunter";
+            return "The Awakened";
+        }
+
+        function buyItem(item, cost) {
+            if (player.gold >= cost) {
+                player.gold -= cost; player.inventory[item]++;
+                showModal("[PURCHASE SUCCESS]", `Acquired 1x ${item.toUpperCase()}.`);
+                saveData();
+            } else showModal("[TRANSACTION FAILED]", "Insufficient Gold.", "critical");
+        }
+
+        function handleThemePurchase(theme, cost) {
+            if (!player.inventory[theme]) {
+                if (player.gold >= cost) {
+                    player.gold -= cost; player.inventory[theme] = true; player.activeTheme = theme;
+                    showModal("[THEME UNLOCKED]", "Crimson Aura UI Override equipped."); saveData();
+                } else showModal("[TRANSACTION FAILED]", "Insufficient Gold.", "critical");
+            } else {
+                player.activeTheme = player.activeTheme === theme ? 'default' : theme; saveData();
+            }
+        }
+
+        function usePotion() {
+            if (player.inventory.potion > 0 && player.isPenalized) {
+                player.inventory.potion--; player.isPenalized = false; player.quests.penalty = false;
+                showModal("[POTION CONSUMED]", "The Penalty Zone has been bypassed."); saveData();
+            }
         }
 
         let pendingTaskId = "";
-
         function triggerVerification(taskId) {
             if(player.quests[taskId]) return;
             pendingTaskId = taskId;
-            
-            if (document.activeElement) {
-                document.activeElement.blur();
-            }
-            
-            const cameraInput = document.getElementById('camera-input');
-            if (taskId === 'run') {
-                cameraInput.removeAttribute('capture'); 
-            } else {
-                cameraInput.setAttribute('capture', 'environment'); 
-            }
-            cameraInput.click();
+            if (document.activeElement) document.activeElement.blur();
+            const cam = document.getElementById('camera-input');
+            taskId === 'steps' ? cam.removeAttribute('capture') : cam.setAttribute('capture', 'environment');
+            cam.click();
         }
 
         async function handleImageUpload(event) {
             const file = event.target.files[0];
             if (!file) return;
-
             const overlay = document.getElementById('scanner-overlay');
-            const subText = document.getElementById('scanner-sub');
+            const sub = document.getElementById('scanner-sub');
             overlay.style.display = "flex";
 
-            if (pendingTaskId === 'run') {
+            if (pendingTaskId === 'steps') {
                 document.getElementById('scanner-main').innerText = "[OCR SCAN ACTIVE]";
-                subText.innerText = "Initializing Optical Character Recognition...";
-
                 try {
-                    const result = await Tesseract.recognize(file, 'eng', {
-                        logger: m => {
-                            if (m.status === 'recognizing text') {
-                                subText.innerText = `Parsing Document Data: ${Math.round(m.progress * 100)}%`;
-                            }
-                        }
-                    });
+                    const res = await Tesseract.recognize(file, 'eng', { logger: m => { if(m.status === 'recognizing text') sub.innerText = `Parsing Data: ${Math.round(m.progress * 100)}%`; } });
+                    overlay.style.display = "none";
                     
-                    overlay.style.display = "none";
-                    const text = result.data.text.toLowerCase();
-                    const runMatch = text.match(/1[0-9][\.\,]?\d*\s*(km|kilometers)/i);
-
-                    if (runMatch) {
-                        alert("SYSTEM VERIFIED: 10km Run confirmed in log.\nQuest marked complete.");
-                        player.quests.run = true;
-                        saveData();
-                    } else {
-                        alert("SYSTEM WARNING: FRAUD DETECTED.\nThe System could not verify a 10km run in this document.");
+                    const text = res.data.text.replace(/,/g, '');
+                    const numbers = text.match(/\d+/g);
+                    let found10k = false;
+                    
+                    if(numbers) {
+                        for(let n of numbers) { if(parseInt(n) >= 10000) found10k = true; }
                     }
-                } catch(err) {
-                    overlay.style.display = "none";
-                    alert("SYSTEM ERROR: OCR inference failure.");
-                    console.error(err);
-                } finally {
-                    document.getElementById('camera-input').value = "";
-                    document.getElementById('scanner-main').innerText = "[SYSTEM VISION ACTIVE]"; 
-                }
+                    
+                    if (found10k) {
+                        showModal("[SYSTEM VERIFIED]", "10,000+ Steps confirmed.\nQuest marked complete.");
+                        player.quests.steps = true; saveData();
+                    } else showModal("[FRAUD DETECTED]", "10,000 steps not found in document.", "critical");
+                } catch(err) { overlay.style.display = "none"; showModal("[SYSTEM ERROR]", "OCR inference failure.", "critical"); }
+                finally { document.getElementById('camera-input').value = ""; document.getElementById('scanner-main').innerText = "[SYSTEM VISION ACTIVE]"; }
                 return;
             }
 
-            if (isModelLoading || !aiModel) {
-                subText.innerText = "System Vision initializing. Retrying in 1s...";
-                await new Promise(r => setTimeout(r, 1000));
-            }
-
-            subText.innerText = "Processing image tensor and detecting subjects...";
-
-            const img = new Image();
-            img.src = URL.createObjectURL(file);
+            if (isModelLoading || !aiModel) { sub.innerText = "Loading AI Engine..."; await new Promise(r => setTimeout(r, 1000)); }
+            sub.innerText = "Processing skeletal keypoints...";
+            
+            const img = new Image(); img.src = URL.createObjectURL(file);
             img.onload = async () => {
                 try {
-                    const canvas = document.createElement('canvas');
-                    const ctx = canvas.getContext('2d');
+                    const canvas = document.createElement('canvas'); const ctx = canvas.getContext('2d');
+                    let w = img.width, h = img.height;
+                    if (w > h) { if (w > 600) { h *= 600/w; w = 600; } } else { if (h > 600) { w *= 600/h; h = 600; } }
+                    canvas.width = w; canvas.height = h; ctx.drawImage(img, 0, 0, w, h);
                     
-                    const maxSize = 600;
-                    let width = img.width;
-                    let height = img.height;
-                    
-                    if (width > height) {
-                        if (width > maxSize) { height *= maxSize / width; width = maxSize; }
-                    } else {
-                        if (height > maxSize) { width *= maxSize / height; height = maxSize; }
-                    }
-                    
-                    canvas.width = width;
-                    canvas.height = height;
-                    ctx.drawImage(img, 0, 0, width, height);
-
-                    const predictions = await aiModel.detect(canvas);
+                    const poses = await aiModel.estimatePoses(canvas);
                     overlay.style.display = "none";
-
-                    const detectedPerson = predictions.find(p => p.class === 'person' && p.score >= 0.50);
-
-                    if (detectedPerson) {
-                        alert(`SYSTEM VERIFIED: Human presence confirmed (${Math.round(detectedPerson.score * 100)}% match).\nQuest marked complete.`);
+                    if (poses.length > 0 && poses[0].score > 0.3) {
+                        showModal("[SYSTEM VERIFIED]", `Skeletal structure confirmed (${Math.round(poses[0].score * 100)}% match).\nQuest marked complete.`);
                         player.quests[pendingTaskId] = true;
-                        
-                        if (pendingTaskId === 'penalty') {
-                            player.isPenalized = false;
-                            alert("SYSTEM MESSAGE: You have survived the Penalty Zone. Restoring normal environment.");
-                        }
+                        if (pendingTaskId === 'penalty') { player.isPenalized = false; showModal("[PENALTY CLEARED]", "You have survived the Penalty Zone."); }
                         saveData();
-                    } else {
-                        alert("SYSTEM WARNING: FRAUD DETECTED.\nNo human subject detected in the image frame.");
-                    }
-                } catch (err) {
-                    overlay.style.display = "none";
-                    alert("SYSTEM ERROR: Vision inference failure.");
-                    console.error(err);
-                } finally {
-                    document.getElementById('camera-input').value = "";
-                    URL.revokeObjectURL(img.src);
-                }
+                    } else showModal("[FRAUD DETECTED]", "No valid human skeleton detected.", "critical");
+                } catch (err) { overlay.style.display = "none"; showModal("[SYSTEM ERROR]", "Vision inference failed.", "critical"); }
+                finally { document.getElementById('camera-input').value = ""; URL.revokeObjectURL(img.src); }
             };
         }
 
@@ -351,90 +423,92 @@
             if(player.lastLogin !== today) {
                 if(!player.dailyClaimed && !player.isPenalized) {
                     player.isPenalized = true;
-                    document.getElementById('alarm-sound').play().catch(() => {});
-                    alert("SYSTEM ALARM: YOU FAILED YESTERDAY'S QUEST.\nPenalty Zone activated. Punishment: 100 Burpees.");
+                    document.getElementById('alarm-sound').play().catch(()=>{});
+                    showModal("[SYSTEM ALARM]", "Daily Quest failed yesterday.\nPenalty Zone active.", "critical");
                 }
-                player.quests = { pushup: false, situp: false, squat: false, run: false, penalty: !player.isPenalized };
-                player.dailyClaimed = false;
-                player.lastLogin = today;
-                saveData();
+                player.quests = { pushup: false, crunch: false, squat: false, steps: false, penalty: !player.isPenalized };
+                player.dailyClaimed = false; player.lastLogin = today; saveData();
             }
         }
 
         function claimDaily() {
-            let requirementsMet = player.quests.pushup && player.quests.situp && player.quests.squat && player.quests.run;
-            
-            if(player.isPenalized && !player.quests.penalty) {
-                return alert("SYSTEM WARNING: Complete the Penalty Quest (100 Burpees) first.");
-            }
-
-            if(requirementsMet) {
-                if(player.dailyClaimed) return alert("Already claimed today.");
-                player.dailyClaimed = true;
-                player.isPenalized = false;
-                player.xp += 100;
-                player.gold += 50;
-                checkLevelUp();
-                alert("SYSTEM MESSAGE: Daily Quest Complete. +100 XP, +50 Gold.");
-                saveData();
-            } else {
-                alert("SYSTEM WARNING: All daily requirements must be verified first.");
-            }
+            if(player.isPenalized && !player.quests.penalty) return showModal("[WARNING]", "Clear Penalty Zone First.", "critical");
+            if(player.quests.pushup && player.quests.crunch && player.quests.squat && player.quests.steps) {
+                if(player.dailyClaimed) return showModal("[INFO]", "Rewards already claimed today.");
+                player.dailyClaimed = true; player.isPenalized = false;
+                player.xp += 100; player.gold += 50; 
+                showModal("[QUEST COMPLETE]", "Rewards distributed:\n+100 XP\n+50 GOLD");
+                checkLevelUp(); saveData();
+            } else showModal("[WARNING]", "All daily requirements must be verified first.", "critical");
         }
 
         function checkLevelUp() {
             let nextXp = player.level * 100;
             if(player.xp >= nextXp) {
-                player.level++; player.xp -= nextXp; player.statPoints += 3;
-                alert(`LEVEL UP! You are now Level ${player.level}. 3 Stat Points awarded.`);
+                player.level++; player.xp -= nextXp; player.statPoints += 3; player.gold += 100;
+                setTimeout(() => { showModal("[LEVEL UP]", `You are now Level ${player.level}.\n+3 Stat Points\n+100 Gold Bonus`); }, 1500);
             }
         }
 
-        function addStat(statName) {
-            if(player.statPoints > 0) { player.stats[statName]++; player.statPoints--; saveData(); }
-        }
+        function addStat(stat) { if(player.statPoints > 0) { player.stats[stat]++; player.statPoints--; saveData(); } }
 
-        function buyItem(item, cost) {
-            if (player.gold >= cost) {
-                player.gold -= cost;
-                if (item === 'potion') player.inventory.potion++;
-                if (item === 'theme_red') player.inventory.theme_red = true;
-                alert("SYSTEM MESSAGE: Purchase successful. Inventory updated.");
-                saveData();
-            } else {
-                alert("SYSTEM WARNING: Insufficient Gold.");
-            }
-        }
+        function saveData() { localStorage.setItem('systemPlayer', JSON.stringify(player)); updateUI(); }
 
-        function saveData() {
-            localStorage.setItem('systemPlayer', JSON.stringify(player));
-            updateUI();
+        function renderStatBars() {
+            const container = document.getElementById('stat-container');
+            container.innerHTML = '';
+            const maxStatDisplay = 50;
+            
+            ['str', 'vit', 'agi', 'int', 'per'].forEach(s => {
+                const val = player.stats[s];
+                const pct = Math.min((val / maxStatDisplay) * 100, 100);
+                container.innerHTML += `
+                    <div class="stat-row">
+                        <span class="stat-label">${s.toUpperCase()}</span>
+                        <div class="stat-bar-bg"><div class="stat-bar-fill" style="width: ${pct}%"></div></div>
+                        <div class="stat-controls">
+                            <span>${val}</span>
+                            <button class="stat-btn" onclick="addStat('${s}')">+</button>
+                        </div>
+                    </div>
+                `;
+            });
         }
 
         function updateUI() {
             document.getElementById('level').innerText = player.level;
+            document.getElementById('player-title').innerText = getPlayerTitle(player.level);
             document.getElementById('xp').innerText = player.xp;
             document.getElementById('gold').innerText = player.gold;
-            if (document.getElementById('shop-gold')) document.getElementById('shop-gold').innerText = player.gold;
+            document.getElementById('shop-gold').innerText = player.gold;
             document.getElementById('next-xp').innerText = player.level * 100;
             document.getElementById('xp-bar').style.width = (player.xp / (player.level * 100)) * 100 + "%";
-            ['str', 'vit', 'agi', 'int', 'per'].forEach(s => document.getElementById(s).innerText = player.stats[s]);
+            document.getElementById('potion-count').innerText = player.inventory.potion;
+            
+            renderStatBars();
 
             let statBtns = document.getElementsByClassName('stat-btn');
             if(player.statPoints > 0) {
                 document.getElementById('stat-points-display').style.display = "inline";
                 document.getElementById('stat-points').innerText = player.statPoints;
-                for(let btn of statBtns) btn.style.display = "inline-block";
-            } else {
-                document.getElementById('stat-points-display').style.display = "none";
-                for(let btn of statBtns) btn.style.display = "none";
-            }
+                for(let b of statBtns) b.style.display = "inline-block";
+            } else { document.getElementById('stat-points-display').style.display = "none"; }
+
+            if(player.activeTheme === 'theme_red' && !player.isPenalized) document.body.classList.add('theme-crimson');
+            else document.body.classList.remove('theme-crimson');
+
+            let themeBtn = document.getElementById('btn-theme-red');
+            if(player.inventory.theme_red) {
+                themeBtn.innerText = player.activeTheme === 'theme_red' ? 'UNEQUIP' : 'EQUIP';
+                themeBtn.style.color = 'var(--system-main)';
+            } else { themeBtn.innerText = '1000G'; themeBtn.style.color = 'inherit'; }
 
             if(player.isPenalized) {
                 document.body.classList.add('penalty-mode');
                 document.getElementById('quest-header').innerText = "[PENALTY ZONE ACTIVE]";
-                document.getElementById('penalty-warning').style.display = "block";
+                document.getElementById('penalty-warning').style.display = "flex";
                 document.getElementById('q-penalty').style.display = "flex";
+                document.getElementById('use-potion-btn').style.display = player.inventory.potion > 0 ? "block" : "none";
             } else {
                 document.body.classList.remove('penalty-mode');
                 document.getElementById('quest-header').innerText = "[DAILY QUEST]";
@@ -442,15 +516,13 @@
                 document.getElementById('q-penalty').style.display = "none";
             }
 
-            ['pushup', 'situp', 'squat', 'run', 'penalty'].forEach(t => {
+            ['pushup', 'crunch', 'squat', 'steps', 'penalty'].forEach(t => {
                 const el = document.getElementById(`q-${t}`);
                 if(el && player.quests[t]) {
                     el.classList.add('completed');
                     const btn = el.querySelector('button');
                     if (btn) btn.style.display = "none";
-                    if(el.innerHTML.includes(' 0 /')) {
-                        el.innerHTML = el.innerHTML.replace(' 0 /', ' MAX /') + " <span>[DONE]</span>";
-                    }
+                    if(el.innerHTML.includes(' 0 /')) el.innerHTML = el.innerHTML.replace(' 0 /', ' MAX /') + " <span style='font-weight:bold;'>[VERIFIED]</span>";
                 }
             });
         }
