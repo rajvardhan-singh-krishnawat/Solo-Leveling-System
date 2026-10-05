@@ -464,7 +464,7 @@
         }
 
         // ----------------------------------------------------
-        // COMPRESSED OCR ENGINE FOR STEPS
+        // UPDATED OCR ENGINE FOR STEPS
         // ----------------------------------------------------
         function triggerVerification(taskId) {
             if(player.quests[taskId]) return;
@@ -482,7 +482,7 @@
             sub.innerText = "Initializing Data Link...";
 
             try {
-                // Compress Image so Tesseract doesn't crash on high-res phone screenshots
+                // INCREASED RESOLUTION FOR BETTER OCR ACCURACY
                 const img = new Image();
                 img.src = URL.createObjectURL(file);
                 await new Promise(r => img.onload = r);
@@ -490,23 +490,38 @@
                 const canvas = document.createElement('canvas');
                 const ctx = canvas.getContext('2d');
                 let w = img.width; let h = img.height;
-                if (w > 800) { h = Math.floor(h * (800 / w)); w = 800; } // Shrink width to 800px max
+                
+                // Allow up to 1600px width before scaling down to keep text sharp
+                if (w > 1600) { h = Math.floor(h * (1600 / w)); w = 1600; } 
                 canvas.width = w; canvas.height = h;
                 ctx.drawImage(img, 0, 0, w, h);
-                const compressedData = canvas.toDataURL('image/jpeg', 0.8);
+                
+                // Switch to PNG to prevent JPEG compression artifacts around text
+                const compressedData = canvas.toDataURL('image/png');
 
                 const res = await Tesseract.recognize(compressedData, 'eng', { 
                     logger: m => { if(m.status === 'recognizing text') sub.innerText = `Parsing Image Data: ${Math.round(m.progress * 100)}%`; } 
                 });
                 
                 overlay.style.display = "none";
-                const text = res.data.text.replace(/,/g, ''); const numbers = text.match(/\d+/g); let found10k = false;
+                
+                // UPDATED PARSER: Strip out spaces, commas, and periods before matching numbers
+                // This fixes errors with "10 000" and "10.000" formats.
+                const normalizedText = res.data.text.replace(/[,.\s]/g, ''); 
+                const numbers = normalizedText.match(/\d+/g); 
+                let found10k = false;
+                
                 if(numbers) { for(let n of numbers) { if(parseInt(n) >= 10000) found10k = true; } }
-                if (found10k) { showModal("[SYSTEM VERIFIED]", "10,000+ Steps confirmed.\nQuest marked complete."); player.quests.steps = true; saveData(); } 
+                
+                if (found10k) { 
+                    showModal("[SYSTEM VERIFIED]", "10,000+ Steps confirmed.\nQuest marked complete."); 
+                    player.quests.steps = true; 
+                    saveData(); 
+                } 
                 else showModal("[FRAUD DETECTED]", "10,000 steps not found in document.", "critical");
             } catch(err) { 
                 overlay.style.display = "none"; 
-                showModal("[SYSTEM ERROR]", "OCR inference failure. The image might still be too large.", "critical"); 
+                showModal("[SYSTEM ERROR]", "OCR inference failure. Try a clearer image.", "critical"); 
             }
             finally { 
                 document.getElementById('camera-input').value = ""; 
