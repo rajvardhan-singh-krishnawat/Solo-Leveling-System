@@ -1,13 +1,14 @@
 {
   "name": "The System",
   "short_name": "System",
-  "start_url": ".",
+  "start_url": "/index.html",
   "display": "standalone",
-  "background_color": "#050b14",
+  "background_color": "#02050a",
   "theme_color": "#00d2ff",
+  "orientation": "portrait",
   "icons": [
     {
-      "src": "icon.png",
+      "src": "https://www.pwabuilder.com/assets/icons/icon_512.png",
       "sizes": "512x512",
       "type": "image/png"
     }
