@@ -12,7 +12,7 @@
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-backend-webgl"></script>
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/pose-detection"></script>
     
-    <!-- Tesseract.js for Optical Character Recognition (OCR) -->
+    <!-- Tesseract.js for OCR (Steps) -->
     <script src="https://cdn.jsdelivr.net/npm/tesseract.js@4/dist/tesseract.min.js"></script>
 
     <style>
@@ -25,38 +25,23 @@
             --system-border: rgba(0, 136, 204, 0.6);
             --system-red: #ff003c;
             --system-green: #00ff00;
+            --system-gold: #ffd700;
         }
 
-        body.theme-crimson {
-            --system-main: #ff3366;
-            --system-panel: rgba(40, 5, 15, 0.65);
-            --system-border: rgba(204, 0, 51, 0.6);
-        }
+        body.theme-crimson { --system-main: #ff3366; --system-panel: rgba(40, 5, 15, 0.65); --system-border: rgba(204, 0, 51, 0.6); }
 
         body {
-            background: linear-gradient(135deg, #02050a 0%, #0a1526 100%);
-            color: var(--system-main);
-            font-family: 'Share Tech Mono', monospace;
-            margin: 0; padding: 15px; display: flex; flex-direction: column;
-            align-items: center; text-shadow: 0 0 5px var(--system-main);
-            padding-bottom: 70px; min-height: 100vh; box-sizing: border-box;
-            transition: all 0.3s ease; overflow-x: hidden;
+            background: linear-gradient(135deg, #02050a 0%, #0a1526 100%); color: var(--system-main);
+            font-family: 'Share Tech Mono', monospace; margin: 0; padding: 15px; display: flex; flex-direction: column;
+            align-items: center; text-shadow: 0 0 5px var(--system-main); padding-bottom: 70px; min-height: 100vh; box-sizing: border-box; overflow-x: hidden;
         }
 
-        body.penalty-mode {
-            background: linear-gradient(135deg, #1a0000 0%, #33000a 100%);
-            color: var(--system-red); text-shadow: 0 0 5px var(--system-red);
-        }
+        body.penalty-mode { background: linear-gradient(135deg, #1a0000 0%, #33000a 100%); color: var(--system-red); text-shadow: 0 0 5px var(--system-red); }
 
         .container {
-            width: 100%; max-width: 450px;
-            background: var(--system-panel);
-            backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
-            border: 1px solid var(--system-border);
-            border-radius: 8px; padding: 15px; box-sizing: border-box;
-            box-shadow: 0 0 20px rgba(0,0,0,0.5), inset 0 0 15px rgba(255,255,255,0.05);
-            margin-bottom: 20px; position: relative; overflow: hidden;
-            transition: all 0.3s ease;
+            width: 100%; max-width: 450px; background: var(--system-panel); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+            border: 1px solid var(--system-border); border-radius: 8px; padding: 15px; box-sizing: border-box;
+            box-shadow: 0 0 20px rgba(0,0,0,0.5), inset 0 0 15px rgba(255,255,255,0.05); margin-bottom: 20px; position: relative; overflow: hidden;
         }
 
         .container::before {
@@ -69,63 +54,76 @@
 
         .stat-row { display: flex; align-items: center; font-size: 1.1em; margin: 10px 0; }
         .stat-label { width: 45px; }
-        .stat-bar-bg { flex-grow: 1; height: 10px; background: rgba(0,0,0,0.6); border: 1px solid var(--system-main); margin: 0 10px; border-radius: 2px; position: relative; }
+        .stat-bar-bg { flex-grow: 1; height: 10px; background: rgba(0,0,0,0.6); border: 1px solid var(--system-main); margin: 0 10px; border-radius: 2px; }
         .stat-bar-fill { height: 100%; background: var(--system-main); box-shadow: 0 0 8px var(--system-main); width: 0%; transition: width 0.5s ease-out; }
         .stat-controls { width: 60px; text-align: right; }
         .stat-btn { padding: 2px 6px; font-size: 0.8em; display: none; margin-left: 5px; }
 
         .quest-list { list-style: none; padding: 0; margin: 0; }
         .quest-item { display: flex; justify-content: space-between; align-items: center; background: rgba(0, 0, 0, 0.4); margin: 10px 0; padding: 12px; border: 1px solid var(--system-border); border-radius: 5px; backdrop-filter: blur(5px); }
+        .quest-item.bonus { border-color: var(--system-gold); color: var(--system-gold); text-shadow: 0 0 5px var(--system-gold); background: rgba(255, 215, 0, 0.05); }
+        .quest-item.secret { border-color: #ff00ff; color: #ff00ff; text-shadow: 0 0 5px #ff00ff; background: rgba(255, 0, 255, 0.05); animation: pulse-neon 2s infinite; }
         .quest-item.penalty { background: rgba(255, 0, 60, 0.15); border-color: var(--system-red); color: var(--system-red); }
-        .quest-item.completed { background: rgba(0, 255, 0, 0.1) !important; border-color: var(--system-green) !important; color: var(--system-green) !important; text-shadow: 0 0 5px var(--system-green) !important; }
+        .quest-item.severe-penalty { background: rgba(255, 0, 0, 0.3); border-color: #ff0000; color: #ff0000; box-shadow: 0 0 15px #ff0000; animation: shake 0.5s infinite alternate; }
+        .quest-item.completed { background: rgba(0, 255, 0, 0.1) !important; border-color: var(--system-green) !important; color: var(--system-green) !important; text-shadow: 0 0 5px var(--system-green) !important; animation: none !important; box-shadow: none !important; }
 
-        button { background: rgba(0,0,0,0.5); color: inherit; border: 1px solid currentColor; padding: 8px 12px; font-family: inherit; cursor: pointer; text-transform: uppercase; transition: all 0.2s; position: relative; z-index: 3; border-radius: 4px; }
+        button { background: rgba(0,0,0,0.5); color: inherit; border: 1px solid currentColor; padding: 8px 12px; font-family: inherit; cursor: pointer; text-transform: uppercase; transition: all 0.2s; border-radius: 4px; z-index: 3; position: relative; }
         button:hover { background: currentColor; color: var(--system-dark); box-shadow: 0 0 15px currentColor; }
 
-        .progress-bar { width: 100%; height: 14px; background: rgba(0,0,0,0.8); border: 1px solid currentColor; margin-top: 10px; border-radius: 3px; position: relative; }
+        .progress-bar { width: 100%; height: 14px; background: rgba(0,0,0,0.8); border: 1px solid currentColor; margin-top: 10px; border-radius: 3px; }
         .progress-fill { height: 100%; background: currentColor; width: 0%; transition: width 0.5s; box-shadow: 0 0 12px currentColor; }
 
         .tab-content { display: none; width: 100%; max-width: 450px; animation: fadeIn 0.3s; }
         .tab-content.active { display: block; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-        
+        @keyframes pulse-neon { 0% { box-shadow: 0 0 5px #ff00ff; } 50% { box-shadow: 0 0 15px #ff00ff; } 100% { box-shadow: 0 0 5px #ff00ff; } }
+        @keyframes shake { 0% { transform: translateX(0); } 100% { transform: translateX(2px); } }
+
         #nav-bar { display: flex; justify-content: space-between; position: fixed; bottom: 0; left: 0; width: 100%; background: rgba(5, 11, 20, 0.9); backdrop-filter: blur(10px); border-top: 1px solid var(--system-border); padding: 10px; box-sizing: border-box; z-index: 10; }
-        .nav-btn { flex: 1; margin: 0 5px; text-align: center; border: 1px solid transparent; color: rgba(255,255,255,0.5); padding: 10px 5px; font-size: 0.9em; transition: all 0.3s ease; background: transparent; }
+        .nav-btn { flex: 1; margin: 0 5px; text-align: center; border: 1px solid transparent; color: rgba(255,255,255,0.5); padding: 10px 5px; font-size: 0.9em; background: transparent; }
         .nav-btn.active { color: var(--system-main); border-bottom: 2px solid var(--system-main); text-shadow: 0 0 8px var(--system-main); }
         
-        #scanner-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.95); z-index: 100; color: var(--system-green); flex-direction: column; justify-content: center; align-items: center; font-size: 1.3em; text-shadow: 0 0 10px var(--system-green); text-align: center; padding: 20px; box-sizing: border-box; }
-
         #voice-btn { position: fixed; bottom: 75px; right: 20px; width: 50px; height: 50px; border-radius: 50%; background: rgba(0,0,0,0.8); border: 2px solid var(--system-main); color: var(--system-main); font-size: 1.5em; display: flex; justify-content: center; align-items: center; z-index: 50; box-shadow: 0 0 15px rgba(0,210,255,0.3); backdrop-filter: blur(5px); transition: all 0.3s; }
-        #voice-btn.listening { border-color: var(--system-red); color: var(--system-red); box-shadow: 0 0 20px var(--system-red); animation: pulse 1s infinite; }
-        @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.1); } 100% { transform: scale(1); } }
+        #voice-btn.listening { border-color: var(--system-red); color: var(--system-red); box-shadow: 0 0 20px var(--system-red); }
 
-        /* Custom System Modals */
-        #system-modal {
-            position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%) scale(0.9);
-            width: 85%; max-width: 350px; background: rgba(5, 10, 15, 0.95);
-            border: 2px solid var(--system-main); z-index: 1000;
-            padding: 25px; text-align: center; color: var(--system-main);
-            box-shadow: 0 0 30px rgba(0, 210, 255, 0.4); border-radius: 8px;
-            opacity: 0; pointer-events: none; transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-            backdrop-filter: blur(15px);
-        }
+        #system-modal { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%) scale(0.9); width: 85%; max-width: 350px; background: rgba(5, 10, 15, 0.95); border: 2px solid var(--system-main); z-index: 1000; padding: 25px; text-align: center; color: var(--system-main); box-shadow: 0 0 30px rgba(0, 210, 255, 0.4); border-radius: 8px; opacity: 0; pointer-events: none; transition: all 0.3s; backdrop-filter: blur(15px); }
         #system-modal.active { opacity: 1; pointer-events: auto; transform: translate(-50%, -50%) scale(1); }
         #system-modal.critical { border-color: var(--system-red); color: var(--system-red); box-shadow: 0 0 40px rgba(255,0,60,0.5); }
+        #system-modal.secret { border-color: #ff00ff; color: #ff00ff; box-shadow: 0 0 40px rgba(255,0,255,0.5); }
         #modal-overlay { position: fixed; top:0; left:0; width:100%; height:100%; background: rgba(0,0,0,0.8); z-index: 999; opacity: 0; pointer-events: none; transition: opacity 0.3s; }
         #modal-overlay.active { opacity: 1; pointer-events: auto; }
         
         .timer-display { font-size: 1.4em; text-align: center; margin-bottom: 15px; color: var(--system-main); font-weight: bold; letter-spacing: 1px; }
         body.penalty-mode .timer-display { color: var(--system-red); text-shadow: 0 0 10px var(--system-red); }
+
+        /* LIVE CAMERA OVERLAY CSS */
+        #live-camera-view {
+            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
+            background: #000; z-index: 2000; flex-direction: column; align-items: center; justify-content: center;
+        }
+        #webcam { position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; z-index: 2001; }
+        #skeleton-canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 2002; }
+        #rep-hud {
+            position: absolute; top: 30px; left: 20px; z-index: 2003; color: var(--system-main); 
+            font-size: 2.5em; text-shadow: 0 0 15px currentColor; font-weight: bold; background: rgba(0,0,0,0.5); padding: 10px 20px; border-radius: 8px; border: 2px solid currentColor;
+        }
+        #cam-abort-btn { position: absolute; bottom: 30px; z-index: 2003; background: var(--system-red); color: #fff; font-size: 1.2em; padding: 15px 30px; border: none; border-radius: 8px; box-shadow: 0 0 20px var(--system-red); }
+        #cam-status { position: absolute; top: 30px; right: 20px; z-index: 2003; color: var(--system-green); font-size: 1em; text-shadow: 0 0 5px currentColor; }
     </style>
 </head>
 <body>
 
+    <!-- OCR Fallback for Steps -->
     <input type="file" accept="image/*" id="camera-input" style="display:none;" onchange="handleImageUpload(event)">
     <audio id="alarm-sound" src="https://assets.mixkit.co/active_storage/sfx/995/995-preview.mp3" preload="auto"></audio>
 
-    <div id="scanner-overlay">
-        <div id="scanner-main">[SYSTEM VISION ACTIVE]</div>
-        <div id="scanner-sub" style="font-size: 0.6em; margin-top: 15px; color: #00d2ff;">Establishing Neural Link...</div>
+    <!-- LIVE CAMERA VIEW -->
+    <div id="live-camera-view">
+        <video id="webcam" autoplay playsinline></video>
+        <canvas id="skeleton-canvas"></canvas>
+        <div id="rep-hud">REPS: <span id="rep-count-display">0</span> / <span id="rep-target-display">100</span></div>
+        <div id="cam-status">INITIALIZING SYSTEM VISION...</div>
+        <button id="cam-abort-btn" onclick="stopLiveScanner()">ABORT SCAN</button>
     </div>
 
     <!-- CUSTOM MODAL UI -->
@@ -145,10 +143,9 @@
             
             <div class="progress-bar"><div class="progress-fill" id="xp-bar"></div></div>
             <div style="text-align: center; margin-top: 5px; font-size: 0.8em;">XP: <span id="xp">0</span> / <span id="next-xp">100</span></div>
-            <div style="text-align: center; margin-top: 10px; font-size: 1.1em; color: gold; text-shadow: 0 0 5px rgba(255,215,0,0.5);">GOLD: <span id="gold">0</span></div>
+            <div style="text-align: center; margin-top: 10px; font-size: 1.1em; color: var(--system-gold); text-shadow: 0 0 5px rgba(255,215,0,0.5);">GOLD: <span id="gold">0</span></div>
             
             <h3 style="margin-top: 25px; font-size: 1em;">ATTRIBUTES <span id="stat-points-display" style="color:var(--system-green); display:none; font-size: 0.8em;">(PTS: <span id="stat-points">0</span>)</span></h3>
-            
             <div id="stat-container"></div>
             
             <div style="margin-top: 20px; text-align: center; font-size: 0.8em; padding-top: 15px; border-top: 1px solid rgba(255,255,255,0.1);">
@@ -164,21 +161,39 @@
             <div class="timer-display" id="countdown-timer">[TIME REMAINING: 00:00:00]</div>
             
             <div id="penalty-warning" style="display: none; flex-direction: column; align-items: center; margin-bottom: 15px; background: rgba(255,0,0,0.1); padding: 10px; border-radius: 5px; border: 1px solid var(--system-red);">
-                <p style="text-align: center; font-size: 0.85em; margin: 0 0 10px 0;">WARNING: The Penalty Zone demands satisfaction.</p>
+                <p id="penalty-text" style="text-align: center; font-size: 0.85em; margin: 0 0 10px 0;">WARNING: The Penalty Zone demands satisfaction.</p>
                 <button id="use-potion-btn" onclick="usePotion()" style="border-color: var(--system-green); color: var(--system-green); width: 100%;">DRINK POTION</button>
             </div>
             
             <ul class="quest-list">
-                <li class="quest-item penalty" id="q-penalty" style="display: none;">
-                    <span>Penalty: 100 Burpees</span>
-                    <button onclick="triggerVerification('penalty')">SCAN</button>
+                <!-- Penalties -->
+                <li class="quest-item severe-penalty" id="q-severe" style="display: none;">
+                    <span>ABYSS: <span class="rep-tracker">0 / 200</span> Burpees</span>
+                    <button onclick="startLiveScanner('severe')">LIVE SCAN</button>
                 </li>
-                <li class="quest-item" id="q-pushup"><span>Push-ups: 0 / 100</span><button onclick="triggerVerification('pushup')">SCAN</button></li>
-                <li class="quest-item" id="q-crunch"><span>Crunches: 0 / 100</span><button onclick="triggerVerification('crunch')">SCAN</button></li>
-                <li class="quest-item" id="q-squat"><span>Squats: 0 / 100</span><button onclick="triggerVerification('squat')">SCAN</button></li>
-                <li class="quest-item" id="q-steps"><span>Steps: 0 / 10,000</span><button onclick="triggerVerification('steps')">OCR</button></li>
+                <li class="quest-item penalty" id="q-penalty" style="display: none;">
+                    <span>Penalty: <span class="rep-tracker">0 / 100</span> Burpees</span>
+                    <button onclick="startLiveScanner('penalty')">LIVE SCAN</button>
+                </li>
+
+                <!-- Daily Base Quests -->
+                <li class="quest-item" id="q-pushup"><span>Push-ups: <span class="rep-tracker">0 / 100</span></span><button onclick="startLiveScanner('pushup')">LIVE SCAN</button></li>
+                <li class="quest-item" id="q-crunch"><span>Crunches: <span class="rep-tracker">0 / 100</span></span><button onclick="startLiveScanner('crunch')">LIVE SCAN</button></li>
+                <li class="quest-item" id="q-squat"><span>Squats: <span class="rep-tracker">0 / 100</span></span><button onclick="startLiveScanner('squat')">LIVE SCAN</button></li>
+                
+                <li class="quest-item" id="q-steps"><span>Steps: 0 / 10k</span><button onclick="triggerVerification('steps')">OCR</button></li>
+                
+                <!-- Bonus & Secret -->
+                <li class="quest-item bonus" id="q-bonus">
+                    <span>Bonus: Plank <span class="rep-tracker">0 / 120</span> Secs</span>
+                    <button onclick="startLiveScanner('bonus')" style="border-color: var(--system-gold);">LIVE SCAN</button>
+                </li>
+                <li class="quest-item secret" id="q-secret" style="display: none;">
+                    <span>EMERGENCY: <span class="rep-tracker">0 / 50</span> Burpees</span>
+                    <button onclick="startLiveScanner('secret')" style="border-color: #ff00ff;">LIVE SCAN</button>
+                </li>
             </ul>
-            <button style="width: 100%; margin-top: 15px; padding: 12px; font-weight: bold; letter-spacing: 1px;" onclick="claimDaily()" id="claim-btn">CLAIM REWARDS</button>
+            <button style="width: 100%; margin-top: 15px; padding: 12px; font-weight: bold; letter-spacing: 1px;" onclick="claimDaily()" id="claim-btn">CLAIM ALL REWARDS</button>
         </div>
     </div>
 
@@ -186,13 +201,12 @@
     <div id="tab-shop" class="tab-content">
         <div class="container">
             <h2>[SYSTEM SHOP]</h2>
-            <p style="text-align: center; font-size: 1em; color: gold; margin-bottom: 20px;">FUNDS: <span id="shop-gold">0</span> G</p>
-            
+            <p style="text-align: center; font-size: 1em; color: var(--system-gold); margin-bottom: 20px;">FUNDS: <span id="shop-gold">0</span> G</p>
             <ul class="quest-list">
                 <li class="quest-item">
                     <div style="flex-grow: 1;">
                         <span style="display: block; font-weight: bold;">Health Potion</span>
-                        <span style="font-size: 0.7em; color: rgba(255,255,255,0.6);">Instantly bypass Penalty Zone.</span>
+                        <span style="font-size: 0.7em; color: rgba(255,255,255,0.6);">Bypass Normal Penalty. (Does NOT clear Abyss).</span>
                     </div>
                     <button onclick="buyItem('potion', 500)">500G</button>
                 </li>
@@ -208,7 +222,6 @@
     </div>
 
     <button id="voice-btn" onclick="toggleVoice()">🎙️</button>
-
     <div id="nav-bar">
         <button class="nav-btn active" onclick="switchTab('status')" id="nav-status">STATUS</button>
         <button class="nav-btn" onclick="switchTab('quests')" id="nav-quests">QUESTS</button>
@@ -217,48 +230,83 @@
 
     <script>
         function showModal(title, msg, type = 'info') {
-            const modal = document.getElementById('system-modal');
-            const overlay = document.getElementById('modal-overlay');
-            document.getElementById('modal-title').innerText = title;
-            document.getElementById('modal-msg').innerText = msg;
-            
-            if(type === 'critical') {
-                modal.classList.add('critical');
-                document.getElementById('modal-title').style.color = "var(--system-red)";
-            } else {
-                modal.classList.remove('critical');
-                document.getElementById('modal-title').style.color = "inherit";
-            }
-            overlay.classList.add('active');
-            modal.classList.add('active');
+            const modal = document.getElementById('system-modal'); const overlay = document.getElementById('modal-overlay');
+            document.getElementById('modal-title').innerText = title; document.getElementById('modal-msg').innerText = msg;
+            modal.className = ''; document.getElementById('modal-title').style.color = "inherit";
+            if(type === 'critical') { modal.classList.add('critical'); document.getElementById('modal-title').style.color = "var(--system-red)"; }
+            if(type === 'secret') { modal.classList.add('secret'); document.getElementById('modal-title').style.color = "#ff00ff"; }
+            overlay.classList.add('active'); modal.classList.add('active');
         }
-
-        function closeModal() {
-            document.getElementById('system-modal').classList.remove('active');
-            document.getElementById('modal-overlay').classList.remove('active');
-        }
+        function closeModal() { document.getElementById('system-modal').classList.remove('active', 'critical', 'secret'); document.getElementById('modal-overlay').classList.remove('active'); }
 
         function updateTimer() {
-            const now = new Date();
-            const tomorrow = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
+            const now = new Date(); const tomorrow = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
             const diff = tomorrow - now;
-            
-            const h = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
-            const m = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-            const s = Math.floor((diff % (1000 * 60)) / 1000);
-            
+            const h = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60)); const m = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60)); const s = Math.floor((diff % (1000 * 60)) / 1000);
             document.getElementById('countdown-timer').innerText = `[T-MINUS: ${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}]`;
         }
-        setInterval(updateTimer, 1000);
-        updateTimer();
+        setInterval(updateTimer, 1000); updateTimer();
 
-        let aiModel = null;
-        let isModelLoading = true;
+        // ----------------------------------------------------
+        // SYSTEM STATE & ECONOMY
+        // ----------------------------------------------------
+        let player = {
+            level: 1, xp: 0, gold: 0, statPoints: 0,
+            stats: { str: 10, vit: 10, agi: 10, int: 10, per: 10 },
+            quests: { pushup: false, crunch: false, squat: false, steps: false, bonus: false, secret: false, penalty: false, severe: false },
+            isPenalized: false, isSevere: false, lastLogin: new Date().toDateString(), dailyClaimed: false,
+            flags: { secretTriggeredToday: false }, inventory: { potion: 0, theme_red: false }, activeTheme: 'default',
+            repProgress: { pushup: 0, crunch: 0, squat: 0, penalty: 0, severe: 0, secret: 0, bonus: 0 } // Tracks current reps done
+        };
+
+        if(localStorage.getItem('systemPlayer')) {
+            const saved = JSON.parse(localStorage.getItem('systemPlayer')); player = { ...player, ...saved };
+            if (player.repProgress === undefined) player.repProgress = { pushup: 0, crunch: 0, squat: 0, penalty: 0, severe: 0, secret: 0, bonus: 0 };
+        }
+
+        function triggerSecretQuestRandomly() {
+            if (!player.flags.secretTriggeredToday && !player.isPenalized && !player.isSevere) {
+                if (Math.random() < 0.25) {
+                    player.flags.secretTriggeredToday = true; saveData();
+                    setTimeout(() => {
+                        document.getElementById('alarm-sound').play().catch(()=>{});
+                        showModal("[EMERGENCY QUEST DETECTED]", "Objective: Survive 50 Burpees.\nFailure results in the ABYSS penalty.", "secret");
+                    }, 2000);
+                }
+            }
+        }
+
+        function buyItem(item, cost) {
+            if (player.gold >= cost) { player.gold -= cost; player.inventory[item]++; showModal("[PURCHASE SUCCESS]", `Acquired 1x ${item.toUpperCase()}.`); saveData(); } 
+            else showModal("[TRANSACTION FAILED]", "Insufficient Gold.", "critical");
+        }
+
+        function handleThemePurchase(theme, cost) {
+            if (!player.inventory[theme]) {
+                if (player.gold >= cost) { player.gold -= cost; player.inventory[theme] = true; player.activeTheme = theme; showModal("[THEME UNLOCKED]", "Crimson Aura UI Override equipped."); saveData(); } 
+                else showModal("[TRANSACTION FAILED]", "Insufficient Gold.", "critical");
+            } else { player.activeTheme = player.activeTheme === theme ? 'default' : theme; saveData(); }
+        }
+
+        function usePotion() {
+            if (player.isSevere) return showModal("[SYSTEM DENIED]", "Potions cannot bypass the Abyss. You must survive.", "critical");
+            if (player.inventory.potion > 0 && player.isPenalized) {
+                player.inventory.potion--; player.isPenalized = false; player.quests.penalty = false;
+                showModal("[POTION CONSUMED]", "The Penalty Zone has been bypassed."); saveData();
+            }
+        }
+
+        // ----------------------------------------------------
+        // AI VISION ENGINE & LIVE REP COUNTER
+        // ----------------------------------------------------
+        let aiModel = null; let isModelLoading = true;
+        let isScanning = false; let camStream = null; let scanTaskId = "";
+        let currentReps = 0; let targetReps = 100;
+        let exerciseState = "up"; // Tracks up/down phases of a rep
 
         async function initSystemVision() {
-            try {
-                await tf.setBackend('webgl');
-                await tf.ready();
+            try { 
+                await tf.setBackend('webgl'); await tf.ready();
                 const detectorConfig = { modelType: poseDetection.movenet.modelType.SINGLEPOSE_LIGHTNING };
                 aiModel = await poseDetection.createDetector(poseDetection.SupportedModels.MoveNet, detectorConfig);
                 isModelLoading = false;
@@ -266,33 +314,235 @@
         }
         initSystemVision();
 
-        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-        let recognition = null;
-        let isListening = false;
-
-        if (SpeechRecognition) {
-            recognition = new SpeechRecognition();
-            recognition.continuous = false;
-            recognition.lang = 'en-US';
-            recognition.onstart = () => { isListening = true; document.getElementById('voice-btn').classList.add('listening'); };
-            recognition.onresult = (e) => processVoiceCommand(e.results[0][0].transcript.toLowerCase());
-            recognition.onend = () => { isListening = false; document.getElementById('voice-btn').classList.remove('listening'); };
+        function calculateAngle(a, b, c) {
+            const radians = Math.atan2(c.y - b.y, c.x - b.x) - Math.atan2(a.y - b.y, a.x - b.x);
+            let angle = Math.abs((radians * 180.0) / Math.PI);
+            if (angle > 180.0) angle = 360 - angle;
+            return angle;
         }
 
-        function toggleVoice() {
-            if (!recognition) return showModal("[SYSTEM ERROR]", "Voice interface not supported.", "critical");
-            isListening ? recognition.stop() : recognition.start();
+        async function startLiveScanner(taskId) {
+            if(isModelLoading || !aiModel) return showModal("[SYSTEM INITIALIZING]", "Neural engine is still loading. Please wait.", "critical");
+            if(player.quests[taskId]) return;
+            
+            scanTaskId = taskId;
+            currentReps = player.repProgress[taskId] || 0;
+            
+            // Set targets based on task
+            if(taskId === 'pushup' || taskId === 'crunch' || taskId === 'squat' || taskId === 'penalty') targetReps = 100;
+            if(taskId === 'severe') targetReps = 200;
+            if(taskId === 'secret') targetReps = 50;
+            if(taskId === 'bonus') targetReps = 120; // 120 seconds of plank (counted loosely by frames holding pose)
+            
+            document.getElementById('rep-count-display').innerText = currentReps;
+            document.getElementById('rep-target-display').innerText = targetReps;
+            document.getElementById('live-camera-view').style.display = 'flex';
+            document.getElementById('cam-status').innerText = "CALIBRATING...";
+
+            try {
+                camStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' }, audio: false });
+                const video = document.getElementById('webcam');
+                video.srcObject = camStream;
+                
+                video.onloadedmetadata = () => {
+                    video.play();
+                    const canvas = document.getElementById('skeleton-canvas');
+                    canvas.width = video.videoWidth; canvas.height = video.videoHeight;
+                    isScanning = true;
+                    document.getElementById('cam-status').innerText = "TRACKING ACTIVE. BEGIN.";
+                    renderLoop();
+                };
+            } catch(err) {
+                document.getElementById('live-camera-view').style.display = 'none';
+                showModal("[CAMERA ERROR]", "Camera permission denied or unavailable.", "critical");
+            }
         }
 
-        function processVoiceCommand(cmd) {
-            if (cmd.includes('status')) switchTab('status');
-            else if (cmd.includes('quest')) switchTab('quests');
-            else if (cmd.includes('shop')) switchTab('shop');
-            else if (cmd.includes('claim')) claimDaily();
-            else if (cmd.includes('push')) triggerVerification('pushup');
-            else if (cmd.includes('crunch')) triggerVerification('crunch');
-            else if (cmd.includes('squat')) triggerVerification('squat');
-            else if (cmd.includes('step')) triggerVerification('steps');
+        function stopLiveScanner() {
+            isScanning = false;
+            if(camStream) camStream.getTracks().forEach(track => track.stop());
+            document.getElementById('live-camera-view').style.display = 'none';
+            // Save progress
+            if(scanTaskId && scanTaskId !== 'bonus') {
+                player.repProgress[scanTaskId] = currentReps;
+                saveData();
+            }
+        }
+
+        async function renderLoop() {
+            if (!isScanning) return;
+            const video = document.getElementById('webcam');
+            const canvas = document.getElementById('skeleton-canvas');
+            const ctx = canvas.getContext('2d');
+            
+            if (video.readyState < 2) { requestAnimationFrame(renderLoop); return; }
+
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            const poses = await aiModel.estimatePoses(video);
+            
+            if (poses.length > 0 && poses[0].score > 0.3) {
+                const keypoints = poses[0].keypoints;
+                document.getElementById('cam-status').innerText = "SKELETON LOCKED";
+                
+                // Draw Skeleton for Sci-Fi Effect
+                ctx.fillStyle = 'rgba(0, 255, 0, 0.8)';
+                keypoints.forEach(kp => { if (kp.score > 0.3) { ctx.beginPath(); ctx.arc(kp.x, kp.y, 5, 0, 2 * Math.PI); ctx.fill(); } });
+                
+                // --- REP COUNTING LOGIC ---
+                // Helper to get keypoint
+                const getKP = (name) => keypoints.find(k => k.name === name && k.score > 0.3);
+                
+                if (scanTaskId === 'squat' || scanTaskId === 'severe' || scanTaskId === 'penalty' || scanTaskId === 'secret') {
+                    // For burpees (penalties/secret), we'll loosely use squat/hip mechanics
+                    const hip = getKP('left_hip') || getKP('right_hip');
+                    const knee = getKP('left_knee') || getKP('right_knee');
+                    const ankle = getKP('left_ankle') || getKP('right_ankle');
+                    
+                    if (hip && knee && ankle) {
+                        const angle = calculateAngle(hip, knee, ankle);
+                        if (angle < 100) exerciseState = "down";
+                        if (angle > 160 && exerciseState === "down") {
+                            exerciseState = "up"; currentReps++;
+                            document.getElementById('rep-count-display').innerText = currentReps;
+                        }
+                    }
+                }
+                
+                if (scanTaskId === 'pushup') {
+                    const shoulder = getKP('left_shoulder') || getKP('right_shoulder');
+                    const elbow = getKP('left_elbow') || getKP('right_elbow');
+                    const wrist = getKP('left_wrist') || getKP('right_wrist');
+                    
+                    if (shoulder && elbow && wrist) {
+                        const angle = calculateAngle(shoulder, elbow, wrist);
+                        if (angle < 90) exerciseState = "down";
+                        if (angle > 150 && exerciseState === "down") {
+                            exerciseState = "up"; currentReps++;
+                            document.getElementById('rep-count-display').innerText = currentReps;
+                        }
+                    }
+                }
+
+                if (scanTaskId === 'crunch') {
+                    const shoulder = getKP('left_shoulder') || getKP('right_shoulder');
+                    const hip = getKP('left_hip') || getKP('right_hip');
+                    const knee = getKP('left_knee') || getKP('right_knee');
+                    
+                    if (shoulder && hip && knee) {
+                        const angle = calculateAngle(shoulder, hip, knee);
+                        if (angle > 140) exerciseState = "down"; // Laying flat
+                        if (angle < 70 && exerciseState === "down") {
+                            exerciseState = "up"; currentReps++;
+                            document.getElementById('rep-count-display').innerText = currentReps;
+                        }
+                    }
+                }
+
+                if (scanTaskId === 'bonus') {
+                    // Plank logic - simplified timer if shoulders and hips are aligned horizontally
+                    const shoulder = getKP('left_shoulder') || getKP('right_shoulder');
+                    const hip = getKP('left_hip') || getKP('right_hip');
+                    if(shoulder && hip && Math.abs(shoulder.y - hip.y) < 50) {
+                        currentReps++; // Counting roughly frames/ticks as "seconds" for prototype
+                        document.getElementById('rep-count-display').innerText = Math.floor(currentReps/10); 
+                    }
+                }
+
+                // Check Completion
+                let checkAmount = scanTaskId === 'bonus' ? currentReps/10 : currentReps;
+                if (checkAmount >= targetReps) {
+                    stopLiveScanner();
+                    player.quests[scanTaskId] = true;
+                    if(scanTaskId === 'severe') player.isSevere = false;
+                    if(scanTaskId === 'penalty') player.isPenalized = false;
+                    player.repProgress[scanTaskId] = targetReps;
+                    saveData();
+                    setTimeout(() => showModal("[QUEST CLEARED]", "Target Reps Verified. Good work.", "info"), 500);
+                    return; // Stop looping
+                }
+            } else {
+                document.getElementById('cam-status').innerText = "BODY NOT DETECTED";
+            }
+            requestAnimationFrame(renderLoop);
+        }
+
+        // ----------------------------------------------------
+        // OCR & STANDARD UI LOGIC
+        // ----------------------------------------------------
+        let ocrPendingTask = "";
+        function triggerVerification(taskId) {
+            if(player.quests[taskId]) return;
+            ocrPendingTask = taskId; if (document.activeElement) document.activeElement.blur();
+            document.getElementById('camera-input').click();
+        }
+
+        async function handleImageUpload(event) {
+            const file = event.target.files[0]; if (!file) return;
+            const overlay = document.getElementById('scanner-overlay'); const sub = document.getElementById('scanner-sub');
+            overlay.style.display = "flex";
+            document.getElementById('scanner-main').innerText = "[OCR SCAN ACTIVE]";
+
+            try {
+                const res = await Tesseract.recognize(file, 'eng', { logger: m => { if(m.status === 'recognizing text') sub.innerText = `Parsing Data: ${Math.round(m.progress * 100)}%`; } });
+                overlay.style.display = "none";
+                const text = res.data.text.replace(/,/g, ''); const numbers = text.match(/\d+/g); let found10k = false;
+                if(numbers) { for(let n of numbers) { if(parseInt(n) >= 10000) found10k = true; } }
+                if (found10k) { showModal("[SYSTEM VERIFIED]", "10,000+ Steps confirmed.\nQuest marked complete."); player.quests.steps = true; saveData(); } 
+                else showModal("[FRAUD DETECTED]", "10,000 steps not found in document.", "critical");
+            } catch(err) { overlay.style.display = "none"; showModal("[SYSTEM ERROR]", "OCR inference failure.", "critical"); }
+            finally { document.getElementById('camera-input').value = ""; document.getElementById('scanner-main').innerText = "[SYSTEM VISION ACTIVE]"; }
+        }
+
+        function checkMidnightReset() {
+            const today = new Date().toDateString();
+            if(player.lastLogin !== today) {
+                let failedBase = !player.dailyClaimed;
+                let failedSecret = player.flags.secretTriggeredToday && !player.quests.secret;
+                player.isPenalized = false; player.isSevere = false;
+                if (failedSecret) { player.isSevere = true; showModal("[CRITICAL ALARM]", "You failed the Emergency Quest.\nWELCOME TO THE ABYSS.", "critical"); } 
+                else if (failedBase && !player.isSevere) { player.isPenalized = true; showModal("[SYSTEM ALARM]", "Daily Quest failed yesterday.\nPenalty Zone active.", "critical"); }
+
+                player.quests = { pushup: false, crunch: false, squat: false, steps: false, bonus: false, secret: false, penalty: player.isPenalized, severe: player.isSevere };
+                player.repProgress = { pushup: 0, crunch: 0, squat: 0, penalty: 0, severe: 0, secret: 0, bonus: 0 };
+                player.flags.secretTriggeredToday = false; player.dailyClaimed = false; player.lastLogin = today; saveData();
+            }
+        }
+
+        function claimDaily() {
+            if(player.isSevere && !player.quests.severe) return showModal("[DENIED]", "You are trapped in the Abyss. Clear 200 Burpees first.", "critical");
+            if(player.isPenalized && !player.quests.penalty) return showModal("[DENIED]", "Clear the Penalty Zone First.", "critical");
+            let baseComplete = player.quests.pushup && player.quests.crunch && player.quests.squat && player.quests.steps;
+            if(!baseComplete) return showModal("[WARNING]", "Base daily requirements not met.", "critical");
+            if(player.dailyClaimed) return showModal("[INFO]", "Rewards already claimed today.");
+
+            let totalXp = 100; let totalGold = 50; let msg = "+100 XP\n+50 GOLD";
+            if (player.quests.bonus) { totalXp += 50; totalGold += 25; msg += "\n[BONUS] +50 XP, +25 GOLD"; }
+            if (player.flags.secretTriggeredToday && player.quests.secret) { totalXp += 150; totalGold += 100; msg += "\n[SECRET] +150 XP, +100 GOLD"; }
+
+            player.dailyClaimed = true; player.xp += totalXp; player.gold += totalGold; 
+            showModal("[QUEST COMPLETE]", "Rewards distributed:\n" + msg); checkLevelUp(); saveData();
+        }
+
+        function checkLevelUp() {
+            let nextXp = player.level * 100;
+            if(player.xp >= nextXp) { player.level++; player.xp -= nextXp; player.statPoints += 3; player.gold += 100; setTimeout(() => { showModal("[LEVEL UP]", `You are now Level ${player.level}.\n+3 Stat Points\n+100 Gold Bonus`); }, 1500); }
+        }
+
+        function addStat(stat) { if(player.statPoints > 0) { player.stats[stat]++; player.statPoints--; saveData(); } }
+        function saveData() { localStorage.setItem('systemPlayer', JSON.stringify(player)); updateUI(); }
+
+        function renderStatBars() {
+            const container = document.getElementById('stat-container'); container.innerHTML = '';
+            ['str', 'vit', 'agi', 'int', 'per'].forEach(s => {
+                const val = player.stats[s]; const pct = Math.min((val / 50) * 100, 100);
+                container.innerHTML += `
+                    <div class="stat-row">
+                        <span class="stat-label">${s.toUpperCase()}</span>
+                        <div class="stat-bar-bg"><div class="stat-bar-fill" style="width: ${pct}%"></div></div>
+                        <div class="stat-controls"><span>${val}</span><button class="stat-btn" onclick="addStat('${s}')">+</button></div>
+                    </div>`;
+            });
         }
 
         function switchTab(tabId) {
@@ -302,233 +552,51 @@
             document.getElementById('nav-' + tabId).classList.add('active');
         }
 
-        let player = {
-            level: 1, xp: 0, gold: 0, statPoints: 0,
-            stats: { str: 10, vit: 10, agi: 10, int: 10, per: 10 },
-            quests: { pushup: false, crunch: false, squat: false, steps: false, penalty: false },
-            isPenalized: false, lastLogin: new Date().toDateString(), dailyClaimed: false,
-            inventory: { potion: 0, theme_red: false }, activeTheme: 'default'
-        };
-
-        if(localStorage.getItem('systemPlayer')) {
-            const savedData = JSON.parse(localStorage.getItem('systemPlayer'));
-            player = { ...player, ...savedData };
-            
-            if (player.quests.situp !== undefined && player.quests.crunch === undefined) { player.quests.crunch = player.quests.situp; delete player.quests.situp; }
-            if (player.quests.run !== undefined && player.quests.steps === undefined) { player.quests.steps = player.quests.run; delete player.quests.run; }
-            if (player.gold === undefined) player.gold = 0;
-            if (player.inventory === undefined) player.inventory = { potion: 0, theme_red: false };
-            if (player.activeTheme === undefined) player.activeTheme = 'default';
-        }
-
-        function getPlayerTitle(level) {
-            if (level >= 20) return "Monarch of Shadows";
-            if (level >= 10) return "Elite Hunter";
-            if (level >= 5) return "Code Hunter";
-            return "The Awakened";
-        }
-
-        function buyItem(item, cost) {
-            if (player.gold >= cost) {
-                player.gold -= cost; player.inventory[item]++;
-                showModal("[PURCHASE SUCCESS]", `Acquired 1x ${item.toUpperCase()}.`);
-                saveData();
-            } else showModal("[TRANSACTION FAILED]", "Insufficient Gold.", "critical");
-        }
-
-        function handleThemePurchase(theme, cost) {
-            if (!player.inventory[theme]) {
-                if (player.gold >= cost) {
-                    player.gold -= cost; player.inventory[theme] = true; player.activeTheme = theme;
-                    showModal("[THEME UNLOCKED]", "Crimson Aura UI Override equipped."); saveData();
-                } else showModal("[TRANSACTION FAILED]", "Insufficient Gold.", "critical");
-            } else {
-                player.activeTheme = player.activeTheme === theme ? 'default' : theme; saveData();
-            }
-        }
-
-        function usePotion() {
-            if (player.inventory.potion > 0 && player.isPenalized) {
-                player.inventory.potion--; player.isPenalized = false; player.quests.penalty = false;
-                showModal("[POTION CONSUMED]", "The Penalty Zone has been bypassed."); saveData();
-            }
-        }
-
-        let pendingTaskId = "";
-        function triggerVerification(taskId) {
-            if(player.quests[taskId]) return;
-            pendingTaskId = taskId;
-            if (document.activeElement) document.activeElement.blur();
-            const cam = document.getElementById('camera-input');
-            taskId === 'steps' ? cam.removeAttribute('capture') : cam.setAttribute('capture', 'environment');
-            cam.click();
-        }
-
-        async function handleImageUpload(event) {
-            const file = event.target.files[0];
-            if (!file) return;
-            const overlay = document.getElementById('scanner-overlay');
-            const sub = document.getElementById('scanner-sub');
-            overlay.style.display = "flex";
-
-            if (pendingTaskId === 'steps') {
-                document.getElementById('scanner-main').innerText = "[OCR SCAN ACTIVE]";
-                try {
-                    const res = await Tesseract.recognize(file, 'eng', { logger: m => { if(m.status === 'recognizing text') sub.innerText = `Parsing Data: ${Math.round(m.progress * 100)}%`; } });
-                    overlay.style.display = "none";
-                    
-                    const text = res.data.text.replace(/,/g, '');
-                    const numbers = text.match(/\d+/g);
-                    let found10k = false;
-                    
-                    if(numbers) {
-                        for(let n of numbers) { if(parseInt(n) >= 10000) found10k = true; }
-                    }
-                    
-                    if (found10k) {
-                        showModal("[SYSTEM VERIFIED]", "10,000+ Steps confirmed.\nQuest marked complete.");
-                        player.quests.steps = true; saveData();
-                    } else showModal("[FRAUD DETECTED]", "10,000 steps not found in document.", "critical");
-                } catch(err) { overlay.style.display = "none"; showModal("[SYSTEM ERROR]", "OCR inference failure.", "critical"); }
-                finally { document.getElementById('camera-input').value = ""; document.getElementById('scanner-main').innerText = "[SYSTEM VISION ACTIVE]"; }
-                return;
-            }
-
-            if (isModelLoading || !aiModel) { sub.innerText = "Loading AI Engine..."; await new Promise(r => setTimeout(r, 1000)); }
-            sub.innerText = "Processing skeletal keypoints...";
-            
-            const img = new Image(); img.src = URL.createObjectURL(file);
-            img.onload = async () => {
-                try {
-                    const canvas = document.createElement('canvas'); const ctx = canvas.getContext('2d');
-                    let w = img.width, h = img.height;
-                    if (w > h) { if (w > 600) { h *= 600/w; w = 600; } } else { if (h > 600) { w *= 600/h; h = 600; } }
-                    canvas.width = w; canvas.height = h; ctx.drawImage(img, 0, 0, w, h);
-                    
-                    const poses = await aiModel.estimatePoses(canvas);
-                    overlay.style.display = "none";
-                    if (poses.length > 0 && poses[0].score > 0.3) {
-                        showModal("[SYSTEM VERIFIED]", `Skeletal structure confirmed (${Math.round(poses[0].score * 100)}% match).\nQuest marked complete.`);
-                        player.quests[pendingTaskId] = true;
-                        if (pendingTaskId === 'penalty') { player.isPenalized = false; showModal("[PENALTY CLEARED]", "You have survived the Penalty Zone."); }
-                        saveData();
-                    } else showModal("[FRAUD DETECTED]", "No valid human skeleton detected.", "critical");
-                } catch (err) { overlay.style.display = "none"; showModal("[SYSTEM ERROR]", "Vision inference failed.", "critical"); }
-                finally { document.getElementById('camera-input').value = ""; URL.revokeObjectURL(img.src); }
-            };
-        }
-
-        function checkMidnightReset() {
-            const today = new Date().toDateString();
-            if(player.lastLogin !== today) {
-                if(!player.dailyClaimed && !player.isPenalized) {
-                    player.isPenalized = true;
-                    document.getElementById('alarm-sound').play().catch(()=>{});
-                    showModal("[SYSTEM ALARM]", "Daily Quest failed yesterday.\nPenalty Zone active.", "critical");
-                }
-                player.quests = { pushup: false, crunch: false, squat: false, steps: false, penalty: !player.isPenalized };
-                player.dailyClaimed = false; player.lastLogin = today; saveData();
-            }
-        }
-
-        function claimDaily() {
-            if(player.isPenalized && !player.quests.penalty) return showModal("[WARNING]", "Clear Penalty Zone First.", "critical");
-            if(player.quests.pushup && player.quests.crunch && player.quests.squat && player.quests.steps) {
-                if(player.dailyClaimed) return showModal("[INFO]", "Rewards already claimed today.");
-                player.dailyClaimed = true; player.isPenalized = false;
-                player.xp += 100; player.gold += 50; 
-                showModal("[QUEST COMPLETE]", "Rewards distributed:\n+100 XP\n+50 GOLD");
-                checkLevelUp(); saveData();
-            } else showModal("[WARNING]", "All daily requirements must be verified first.", "critical");
-        }
-
-        function checkLevelUp() {
-            let nextXp = player.level * 100;
-            if(player.xp >= nextXp) {
-                player.level++; player.xp -= nextXp; player.statPoints += 3; player.gold += 100;
-                setTimeout(() => { showModal("[LEVEL UP]", `You are now Level ${player.level}.\n+3 Stat Points\n+100 Gold Bonus`); }, 1500);
-            }
-        }
-
-        function addStat(stat) { if(player.statPoints > 0) { player.stats[stat]++; player.statPoints--; saveData(); } }
-
-        function saveData() { localStorage.setItem('systemPlayer', JSON.stringify(player)); updateUI(); }
-
-        function renderStatBars() {
-            const container = document.getElementById('stat-container');
-            container.innerHTML = '';
-            const maxStatDisplay = 50;
-            
-            ['str', 'vit', 'agi', 'int', 'per'].forEach(s => {
-                const val = player.stats[s];
-                const pct = Math.min((val / maxStatDisplay) * 100, 100);
-                container.innerHTML += `
-                    <div class="stat-row">
-                        <span class="stat-label">${s.toUpperCase()}</span>
-                        <div class="stat-bar-bg"><div class="stat-bar-fill" style="width: ${pct}%"></div></div>
-                        <div class="stat-controls">
-                            <span>${val}</span>
-                            <button class="stat-btn" onclick="addStat('${s}')">+</button>
-                        </div>
-                    </div>
-                `;
-            });
-        }
-
         function updateUI() {
-            document.getElementById('level').innerText = player.level;
-            document.getElementById('player-title').innerText = getPlayerTitle(player.level);
-            document.getElementById('xp').innerText = player.xp;
-            document.getElementById('gold').innerText = player.gold;
-            document.getElementById('shop-gold').innerText = player.gold;
-            document.getElementById('next-xp').innerText = player.level * 100;
-            document.getElementById('xp-bar').style.width = (player.xp / (player.level * 100)) * 100 + "%";
-            document.getElementById('potion-count').innerText = player.inventory.potion;
-            
-            renderStatBars();
+            document.getElementById('level').innerText = player.level; document.getElementById('player-title').innerText = player.level >= 20 ? "Monarch of Shadows" : player.level >= 10 ? "Elite Hunter" : player.level >= 5 ? "Code Hunter" : "The Awakened";
+            document.getElementById('xp').innerText = player.xp; document.getElementById('gold').innerText = player.gold; document.getElementById('shop-gold').innerText = player.gold;
+            document.getElementById('next-xp').innerText = player.level * 100; document.getElementById('xp-bar').style.width = (player.xp / (player.level * 100)) * 100 + "%";
+            document.getElementById('potion-count').innerText = player.inventory.potion; renderStatBars();
 
             let statBtns = document.getElementsByClassName('stat-btn');
-            if(player.statPoints > 0) {
-                document.getElementById('stat-points-display').style.display = "inline";
-                document.getElementById('stat-points').innerText = player.statPoints;
-                for(let b of statBtns) b.style.display = "inline-block";
-            } else { document.getElementById('stat-points-display').style.display = "none"; }
+            if(player.statPoints > 0) { document.getElementById('stat-points-display').style.display = "inline"; document.getElementById('stat-points').innerText = player.statPoints; for(let b of statBtns) b.style.display = "inline-block"; } 
+            else { document.getElementById('stat-points-display').style.display = "none"; for(let b of statBtns) b.style.display = "none"; }
 
-            if(player.activeTheme === 'theme_red' && !player.isPenalized) document.body.classList.add('theme-crimson');
-            else document.body.classList.remove('theme-crimson');
+            if(player.activeTheme === 'theme_red' && !player.isPenalized && !player.isSevere) document.body.classList.add('theme-crimson'); else document.body.classList.remove('theme-crimson');
 
             let themeBtn = document.getElementById('btn-theme-red');
-            if(player.inventory.theme_red) {
-                themeBtn.innerText = player.activeTheme === 'theme_red' ? 'UNEQUIP' : 'EQUIP';
-                themeBtn.style.color = 'var(--system-main)';
-            } else { themeBtn.innerText = '1000G'; themeBtn.style.color = 'inherit'; }
+            if(player.inventory.theme_red) { themeBtn.innerText = player.activeTheme === 'theme_red' ? 'UNEQUIP' : 'EQUIP'; themeBtn.style.color = 'var(--system-main)'; } 
+            else { themeBtn.innerText = '1000G'; themeBtn.style.color = 'inherit'; }
 
-            if(player.isPenalized) {
-                document.body.classList.add('penalty-mode');
-                document.getElementById('quest-header').innerText = "[PENALTY ZONE ACTIVE]";
-                document.getElementById('penalty-warning').style.display = "flex";
-                document.getElementById('q-penalty').style.display = "flex";
-                document.getElementById('use-potion-btn').style.display = player.inventory.potion > 0 ? "block" : "none";
-            } else {
-                document.body.classList.remove('penalty-mode');
-                document.getElementById('quest-header').innerText = "[DAILY QUEST]";
-                document.getElementById('penalty-warning').style.display = "none";
-                document.getElementById('q-penalty').style.display = "none";
-            }
+            document.getElementById('q-secret').style.display = player.flags.secretTriggeredToday ? "flex" : "none";
 
-            ['pushup', 'crunch', 'squat', 'steps', 'penalty'].forEach(t => {
+            if (player.isSevere) { document.body.classList.add('penalty-mode'); document.getElementById('quest-header').innerText = "[THE ABYSS ACTIVE]"; document.getElementById('penalty-warning').style.display = "flex"; document.getElementById('penalty-text').innerText = "WARNING: You are in the Abyss. Potions will not save you."; document.getElementById('use-potion-btn').style.display = "none"; document.getElementById('q-severe').style.display = "flex"; document.getElementById('q-penalty').style.display = "none"; } 
+            else if (player.isPenalized) { document.body.classList.add('penalty-mode'); document.getElementById('quest-header').innerText = "[PENALTY ZONE ACTIVE]"; document.getElementById('penalty-warning').style.display = "flex"; document.getElementById('penalty-text').innerText = "WARNING: The Penalty Zone demands satisfaction."; document.getElementById('use-potion-btn').style.display = player.inventory.potion > 0 ? "block" : "none"; document.getElementById('q-severe').style.display = "none"; document.getElementById('q-penalty').style.display = "flex"; } 
+            else { document.body.classList.remove('penalty-mode'); document.getElementById('quest-header').innerText = "[DAILY QUEST]"; document.getElementById('penalty-warning').style.display = "none"; document.getElementById('q-severe').style.display = "none"; document.getElementById('q-penalty').style.display = "none"; }
+
+            // Update individual rep trackers
+            ['pushup', 'crunch', 'squat', 'bonus', 'secret', 'penalty', 'severe'].forEach(t => {
                 const el = document.getElementById(`q-${t}`);
-                if(el && player.quests[t]) {
-                    el.classList.add('completed');
-                    const btn = el.querySelector('button');
-                    if (btn) btn.style.display = "none";
-                    if(el.innerHTML.includes(' 0 /')) el.innerHTML = el.innerHTML.replace(' 0 /', ' MAX /') + " <span style='font-weight:bold;'>[VERIFIED]</span>";
+                if(el) {
+                    const span = el.querySelector('.rep-tracker');
+                    if(span) {
+                        let target = t === 'pushup' || t === 'crunch' || t === 'squat' || t === 'penalty' ? 100 : t === 'severe' ? 200 : t === 'secret' ? 50 : 120;
+                        let progress = player.repProgress[t] || 0;
+                        if(player.quests[t]) progress = target;
+                        span.innerText = `${progress} / ${target}`;
+                    }
+                    if(player.quests[t]) {
+                        el.classList.add('completed');
+                        const btn = el.querySelector('button'); if(btn) btn.style.display = "none";
+                    }
                 }
             });
+            // Steps UI
+            const stepsEl = document.getElementById('q-steps');
+            if(stepsEl && player.quests['steps']) { stepsEl.classList.add('completed'); const btn = stepsEl.querySelector('button'); if(btn) btn.style.display = "none"; if(stepsEl.innerHTML.includes(' 0 /')) stepsEl.innerHTML = stepsEl.innerHTML.replace(' 0 /', ' MAX /'); }
         }
 
-        checkMidnightReset();
-        updateUI();
+        checkMidnightReset(); updateUI(); triggerSecretQuestRandomly();
         if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js');
     </script>
 </body>
