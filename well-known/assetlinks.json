@@ -1,0 +1,8 @@
+[{
+      "relation": ["delegate_permission/common.handle_all_urls"],
+      "target": {
+        "namespace": "android_app",
+        "package_name": "app.netlify.sololevelingsystempro.twa",
+        "sha256_cert_fingerprints": ["44:72:2C:EE:7C:94:36:FB:4B:BA:FF:5A:D8:9B:46:B5:1E:9E:A2:C7:F5:66:01:12:8E:D7:FD:E8:88:CA:31:E0"]
+      }
+    }]
