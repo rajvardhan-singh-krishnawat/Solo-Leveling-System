@@ -12,7 +12,7 @@
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-backend-webgl"></script>
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/pose-detection"></script>
     
-    <!-- Tesseract.js for OCR (Only used for Steps now) -->
+    <!-- Tesseract.js for OCR -->
     <script src="https://cdn.jsdelivr.net/npm/tesseract.js@4/dist/tesseract.min.js"></script>
 
     <style>
@@ -104,20 +104,17 @@
 </head>
 <body>
 
-    <!-- OCR Upload ONLY for Steps. -->
     <input type="file" accept="image/*" id="camera-input" style="display:none;" onchange="handleImageUpload(event)">
     <audio id="alarm-sound" src="https://assets.mixkit.co/active_storage/sfx/995/995-preview.mp3" preload="auto"></audio>
 
-    <!-- LIVE CAMERA VIEW -->
     <div id="live-camera-view">
         <video id="webcam" autoplay playsinline></video>
         <canvas id="skeleton-canvas"></canvas>
         <div id="rep-hud">REPS: <span id="rep-count-display">0</span> / <span id="rep-target-display">100</span></div>
-        <div id="cam-status">AWAITING FULL BODY LOCK (60%+)</div>
+        <div id="cam-status">AWAITING BODY LOCK (55%+)</div>
         <button id="cam-abort-btn" onclick="stopLiveScanner()">SAVE & EXIT</button>
     </div>
 
-    <!-- CUSTOM MODAL UI -->
     <div id="modal-overlay"></div>
     <div id="system-modal">
         <h3 id="modal-title" style="margin-bottom: 15px;">[ALERT]</h3>
@@ -153,7 +150,6 @@
             </div>
             
             <ul class="quest-list">
-                <!-- Penalties -->
                 <li class="quest-item severe-penalty" id="q-severe" style="display: none;">
                     <span>ABYSS: <span class="rep-tracker">0 / 200</span> Burpees</span>
                     <button onclick="startLiveScanner('severe')">LIVE CAM</button>
@@ -163,7 +159,6 @@
                     <button onclick="startLiveScanner('penalty')">LIVE CAM</button>
                 </li>
 
-                <!-- Daily Base Quests -->
                 <li class="quest-item" id="q-pushup">
                     <span>Push-ups: <span class="rep-tracker">0 / 100</span></span>
                     <button onclick="startLiveScanner('pushup')">LIVE CAM</button>
@@ -182,7 +177,6 @@
                     <button onclick="triggerVerification('steps')">OCR SCAN</button>
                 </li>
                 
-                <!-- Bonus & Secret -->
                 <li class="quest-item bonus" id="q-bonus">
                     <span>Bonus: Plank <span class="rep-tracker">0 / 120</span> Secs</span>
                     <button onclick="startLiveScanner('bonus')" style="border-color: var(--system-gold);">LIVE CAM</button>
@@ -227,7 +221,6 @@
     </div>
 
     <script>
-        // Modal & Timer Logic
         function showModal(title, msg, type = 'info') {
             const modal = document.getElementById('system-modal'); const overlay = document.getElementById('modal-overlay');
             document.getElementById('modal-title').innerText = title; document.getElementById('modal-msg').innerText = msg;
@@ -246,9 +239,6 @@
         }
         setInterval(updateTimer, 1000); updateTimer();
 
-        // ----------------------------------------------------
-        // SYSTEM STATE & ECONOMY
-        // ----------------------------------------------------
         let player = {
             level: 1, xp: 0, gold: 0, statPoints: 0,
             stats: { str: 10, vit: 10, agi: 10, int: 10, per: 10 },
@@ -296,7 +286,7 @@
         }
 
         // ----------------------------------------------------
-        // LIVE CAMERA AI (60% THRESHOLD)
+        // LIVE CAMERA AI 
         // ----------------------------------------------------
         let aiModel = null; let isModelLoading = true;
         let isScanning = false; let camStream = null; let scanTaskId = "";
@@ -337,7 +327,7 @@
             document.getElementById('live-camera-view').style.display = 'flex';
             
             const statusEl = document.getElementById('cam-status');
-            statusEl.innerText = "AWAITING FULL BODY LOCK (60%+)";
+            statusEl.innerText = "AWAITING BODY LOCK (55%+)";
             statusEl.style.color = "var(--system-red)";
 
             try {
@@ -381,22 +371,26 @@
             
             const poses = await aiModel.estimatePoses(video);
             
-            // ADJUSTED THRESHOLD: Must be 60% confident it's a full body
-            if (poses.length > 0 && poses[0].score >= 0.60) {
+            if (poses.length > 0 && poses[0].score >= 0.55) {
                 const keypoints = poses[0].keypoints;
                 
-                // ADJUSTED JOINT CHECK: Requires 55% confidence on the specific required joints
-                const getKP = (name) => keypoints.find(k => k.name === name && k.score >= 0.55);
+                // SMART SIDE SELECTOR: Auto-picks the clearest side (left vs right) for side-profile
+                const getBestKP = (leftName, rightName) => {
+                    const left = keypoints.find(k => k.name === leftName && k.score >= 0.45);
+                    const right = keypoints.find(k => k.name === rightName && k.score >= 0.45);
+                    if (left && right) return left.score > right.score ? left : right;
+                    return left || right;
+                };
 
                 let hasRequiredJoints = false;
 
                 ctx.fillStyle = 'rgba(0, 255, 0, 0.8)';
-                keypoints.forEach(kp => { if (kp.score >= 0.55) { ctx.beginPath(); ctx.arc(kp.x, kp.y, 6, 0, 2 * Math.PI); ctx.fill(); } });
+                keypoints.forEach(kp => { if (kp.score >= 0.45) { ctx.beginPath(); ctx.arc(kp.x, kp.y, 6, 0, 2 * Math.PI); ctx.fill(); } });
                 
                 if (scanTaskId === 'squat' || scanTaskId === 'severe' || scanTaskId === 'penalty' || scanTaskId === 'secret') {
-                    const hip = getKP('left_hip') || getKP('right_hip');
-                    const knee = getKP('left_knee') || getKP('right_knee');
-                    const ankle = getKP('left_ankle') || getKP('right_ankle');
+                    const hip = getBestKP('left_hip', 'right_hip');
+                    const knee = getBestKP('left_knee', 'right_knee');
+                    const ankle = getBestKP('left_ankle', 'right_ankle');
                     
                     if (hip && knee && ankle) {
                         hasRequiredJoints = true;
@@ -410,15 +404,15 @@
                 }
                 
                 if (scanTaskId === 'pushup') {
-                    const shoulder = getKP('left_shoulder') || getKP('right_shoulder');
-                    const elbow = getKP('left_elbow') || getKP('right_elbow');
-                    const wrist = getKP('left_wrist') || getKP('right_wrist');
+                    const shoulder = getBestKP('left_shoulder', 'right_shoulder');
+                    const elbow = getBestKP('left_elbow', 'right_elbow');
+                    const wrist = getBestKP('left_wrist', 'right_wrist');
                     
                     if (shoulder && elbow && wrist) {
                         hasRequiredJoints = true;
                         const angle = calculateAngle(shoulder, elbow, wrist);
-                        if (angle < 90) exerciseState = "down";
-                        if (angle > 150 && exerciseState === "down") {
+                        if (angle < 110) exerciseState = "down";
+                        if (angle > 140 && exerciseState === "down") {
                             exerciseState = "up"; currentReps++;
                             document.getElementById('rep-count-display').innerText = currentReps;
                         }
@@ -426,15 +420,16 @@
                 }
 
                 if (scanTaskId === 'crunch') {
-                    const shoulder = getKP('left_shoulder') || getKP('right_shoulder');
-                    const hip = getKP('left_hip') || getKP('right_hip');
-                    const knee = getKP('left_knee') || getKP('right_knee');
+                    const shoulder = getBestKP('left_shoulder', 'right_shoulder');
+                    const hip = getBestKP('left_hip', 'right_hip');
+                    const knee = getBestKP('left_knee', 'right_knee');
                     
                     if (shoulder && hip && knee) {
                         hasRequiredJoints = true;
                         const angle = calculateAngle(shoulder, hip, knee);
+                        // Much more forgiving angle for crunches (flat is ~180, crunch is ~120)
                         if (angle > 140) exerciseState = "down";
-                        if (angle < 70 && exerciseState === "down") {
+                        if (angle < 120 && exerciseState === "down") {
                             exerciseState = "up"; currentReps++;
                             document.getElementById('rep-count-display').innerText = currentReps;
                         }
@@ -442,12 +437,17 @@
                 }
 
                 if (scanTaskId === 'bonus') {
-                    const shoulder = getKP('left_shoulder') || getKP('right_shoulder');
-                    const hip = getKP('left_hip') || getKP('right_hip');
-                    if(shoulder && hip && Math.abs(shoulder.y - hip.y) < 50) {
-                        hasRequiredJoints = true;
-                        currentReps++; 
-                        document.getElementById('rep-count-display').innerText = Math.floor(currentReps/10); 
+                    const shoulder = getBestKP('left_shoulder', 'right_shoulder');
+                    const hip = getBestKP('left_hip', 'right_hip');
+                    if (shoulder && hip) {
+                        // Just checking if you are horizontal on the floor
+                        const dx = Math.abs(shoulder.x - hip.x);
+                        const dy = Math.abs(shoulder.y - hip.y);
+                        if (dx > dy) {
+                            hasRequiredJoints = true;
+                            currentReps++; 
+                            document.getElementById('rep-count-display').innerText = Math.floor(currentReps/10); 
+                        }
                     }
                 }
 
@@ -455,7 +455,7 @@
                     statusEl.innerText = "TRACKING ACTIVE";
                     statusEl.style.color = "var(--system-green)";
                 } else {
-                    statusEl.innerText = "STEP BACK - JOINTS NOT VISIBLE";
+                    statusEl.innerText = "POSITION UNCLEAR - ADJUST ANGLE";
                     statusEl.style.color = "var(--system-gold)";
                 }
 
@@ -471,7 +471,7 @@
                     return; 
                 }
             } else {
-                statusEl.innerText = "AWAITING FULL BODY LOCK (60%+)";
+                statusEl.innerText = "AWAITING BODY LOCK (55%+)";
                 statusEl.style.color = "var(--system-red)";
             }
             requestAnimationFrame(renderLoop);
@@ -483,7 +483,6 @@
         function triggerVerification(taskId) {
             if(player.quests[taskId]) return;
             if (document.activeElement) document.activeElement.blur();
-            // This now ONLY gets called for steps.
             document.getElementById('camera-input').click();
         }
 
@@ -505,9 +504,6 @@
             finally { document.getElementById('camera-input').value = ""; document.getElementById('scanner-main').innerText = "[SYSTEM VISION ACTIVE]"; }
         }
 
-        // ----------------------------------------------------
-        // DAILY RESET & CLAIM LOGIC
-        // ----------------------------------------------------
         function checkMidnightReset() {
             const today = new Date().toDateString();
             if(player.lastLogin !== today) {
