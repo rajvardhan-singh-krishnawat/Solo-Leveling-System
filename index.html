@@ -84,25 +84,25 @@
         .timer-display { font-size: 1.4em; text-align: center; margin-bottom: 15px; color: var(--system-main); font-weight: bold; letter-spacing: 1px; }
         body.penalty-mode .timer-display { color: var(--system-red); text-shadow: 0 0 10px var(--system-red); }
 
-        /* LIVE CAMERA OVERLAY CSS */
-        #live-camera-view {
-            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
-            background: #000; z-index: 2000; flex-direction: column; align-items: center; justify-content: center;
-        }
+        #live-camera-view { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #000; z-index: 2000; flex-direction: column; align-items: center; justify-content: center; }
         #webcam { position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; z-index: 2001; }
         #skeleton-canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 2002; }
-        #rep-hud {
-            position: absolute; top: 30px; left: 20px; z-index: 2003; color: var(--system-main); 
-            font-size: 2.5em; text-shadow: 0 0 15px currentColor; font-weight: bold; background: rgba(0,0,0,0.5); padding: 10px 20px; border-radius: 8px; border: 2px solid currentColor;
-        }
+        #rep-hud { position: absolute; top: 30px; left: 20px; z-index: 2003; color: var(--system-main); font-size: 2.5em; text-shadow: 0 0 15px currentColor; font-weight: bold; background: rgba(0,0,0,0.5); padding: 10px 20px; border-radius: 8px; border: 2px solid currentColor; }
         #cam-abort-btn { position: absolute; bottom: 30px; z-index: 2003; background: var(--system-red); color: #fff; font-size: 1.2em; padding: 15px 30px; border: none; border-radius: 8px; box-shadow: 0 0 20px var(--system-red); cursor: pointer; }
         #cam-status { position: absolute; top: 30px; right: 20px; z-index: 2003; color: var(--system-red); font-weight: bold; background: rgba(0,0,0,0.7); padding: 5px 10px; border-radius: 4px; font-size: 1em; text-shadow: 0 0 5px currentColor; max-width: 200px; text-align: right; }
+        
+        #scanner-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.95); z-index: 100; color: var(--system-green); flex-direction: column; justify-content: center; align-items: center; font-size: 1.3em; text-shadow: 0 0 10px var(--system-green); text-align: center; padding: 20px; box-sizing: border-box; }
     </style>
 </head>
 <body>
 
     <input type="file" accept="image/*" id="camera-input" style="display:none;" onchange="handleImageUpload(event)">
     <audio id="alarm-sound" src="https://assets.mixkit.co/active_storage/sfx/995/995-preview.mp3" preload="auto"></audio>
+
+    <div id="scanner-overlay">
+        <div id="scanner-main">[SYSTEM VISION ACTIVE]</div>
+        <div id="scanner-sub" style="font-size: 0.6em; margin-top: 15px; color: #00d2ff;">Establishing Neural Link...</div>
+    </div>
 
     <div id="live-camera-view">
         <video id="webcam" autoplay playsinline></video>
@@ -155,7 +155,6 @@
                     <span>Penalty: <span class="rep-tracker">0 / 100</span> Burpees</span>
                     <button onclick="startLiveScanner('penalty')">LIVE CAM</button>
                 </li>
-
                 <li class="quest-item" id="q-pushup">
                     <span>Push-ups: <span class="rep-tracker">0 / 100</span></span>
                     <button onclick="startLiveScanner('pushup')">LIVE CAM</button>
@@ -196,7 +195,7 @@
                 <li class="quest-item">
                     <div style="flex-grow: 1;">
                         <span style="display: block; font-weight: bold;">Health Potion</span>
-                        <span style="font-size: 0.7em; color: rgba(255,255,255,0.6);">Bypass Normal Penalty. (Does NOT clear Abyss).</span>
+                        <span style="font-size: 0.7em; color: rgba(255,255,255,0.6);">Bypass Normal Penalty.</span>
                     </div>
                     <button onclick="buyItem('potion', 500)">500G</button>
                 </li>
@@ -282,15 +281,10 @@
             }
         }
 
-        // ----------------------------------------------------
-        // HIGHLY RESPONSIVE AI LOGIC
-        // ----------------------------------------------------
         let aiModel = null; let isModelLoading = true;
         let isScanning = false; let camStream = null; let scanTaskId = "";
-        let currentReps = 0; let targetReps = 100;
-        let exerciseState = "up";
-        
-        let lastFrameTime = 0; // NEW: True Time tracking
+        let currentReps = 0; let targetReps = 100; let exerciseState = "up";
+        let lastFrameTime = 0; 
 
         async function initSystemVision() {
             try { 
@@ -339,7 +333,7 @@
                     const canvas = document.getElementById('skeleton-canvas');
                     canvas.width = video.videoWidth; canvas.height = video.videoHeight;
                     isScanning = true;
-                    lastFrameTime = Date.now(); // Start true time tracking
+                    lastFrameTime = Date.now(); 
                     renderLoop();
                 };
             } catch(err) {
@@ -352,10 +346,7 @@
             isScanning = false;
             if(camStream) camStream.getTracks().forEach(track => track.stop());
             document.getElementById('live-camera-view').style.display = 'none';
-            if(scanTaskId) {
-                player.repProgress[scanTaskId] = Math.floor(currentReps);
-                saveData();
-            }
+            if(scanTaskId) { player.repProgress[scanTaskId] = Math.floor(currentReps); saveData(); }
         }
 
         async function renderLoop() {
@@ -367,20 +358,15 @@
             
             if (video.readyState < 2) { requestAnimationFrame(renderLoop); return; }
 
-            // TRUE TIME DELTA CALCULATION
             let now = Date.now();
-            let dt = (now - lastFrameTime) / 1000.0; // Seconds passed since last frame
+            let dt = (now - lastFrameTime) / 1000.0;
             lastFrameTime = now;
 
             ctx.clearRect(0, 0, canvas.width, canvas.height);
-            
             const poses = await aiModel.estimatePoses(video);
             
-            // Forgiving 50% Body Lock
             if (poses.length > 0 && poses[0].score >= 0.50) {
                 const keypoints = poses[0].keypoints;
-                
-                // HIGHLY FORGIVING 35% JOINT LOCK TO ACCOUNT FOR MOTION BLUR
                 const getBestKP = (leftName, rightName) => {
                     const left = keypoints.find(k => k.name === leftName && k.score >= 0.35);
                     const right = keypoints.find(k => k.name === rightName && k.score >= 0.35);
@@ -397,11 +383,9 @@
                     const hip = getBestKP('left_hip', 'right_hip');
                     const knee = getBestKP('left_knee', 'right_knee');
                     const ankle = getBestKP('left_ankle', 'right_ankle');
-                    
                     if (hip && knee && ankle) {
                         hasRequiredJoints = true;
                         const angle = calculateAngle(hip, knee, ankle);
-                        // Much more forgiving squat angles
                         if (angle < 115) exerciseState = "down";
                         if (angle > 145 && exerciseState === "down") {
                             exerciseState = "up"; currentReps++;
@@ -414,11 +398,9 @@
                     const shoulder = getBestKP('left_shoulder', 'right_shoulder');
                     const elbow = getBestKP('left_elbow', 'right_elbow');
                     const wrist = getBestKP('left_wrist', 'right_wrist');
-                    
                     if (shoulder && elbow && wrist) {
                         hasRequiredJoints = true;
                         const angle = calculateAngle(shoulder, elbow, wrist);
-                        // Forgiving pushup angles
                         if (angle < 115) exerciseState = "down";
                         if (angle > 140 && exerciseState === "down") {
                             exerciseState = "up"; currentReps++;
@@ -431,11 +413,9 @@
                     const shoulder = getBestKP('left_shoulder', 'right_shoulder');
                     const hip = getBestKP('left_hip', 'right_hip');
                     const knee = getBestKP('left_knee', 'right_knee');
-                    
                     if (shoulder && hip && knee) {
                         hasRequiredJoints = true;
                         const angle = calculateAngle(shoulder, hip, knee);
-                        // Very forgiving crunches. Just lift the shoulders.
                         if (angle > 130) exerciseState = "down";
                         if (angle < 110 && exerciseState === "down") {
                             exerciseState = "up"; currentReps++;
@@ -448,12 +428,11 @@
                     const shoulder = getBestKP('left_shoulder', 'right_shoulder');
                     const hip = getBestKP('left_hip', 'right_hip');
                     if (shoulder && hip) {
-                        // Forgiving horizontal check
                         const dx = Math.abs(shoulder.x - hip.x);
                         const dy = Math.abs(shoulder.y - hip.y);
                         if (dx > dy * 0.5) { 
                             hasRequiredJoints = true;
-                            currentReps += dt; // Add TRUE SECONDS
+                            currentReps += dt; 
                             document.getElementById('rep-count-display').innerText = Math.floor(currentReps); 
                         }
                     }
@@ -485,7 +464,7 @@
         }
 
         // ----------------------------------------------------
-        // OCR FOR STEPS ONLY
+        // COMPRESSED OCR ENGINE FOR STEPS
         // ----------------------------------------------------
         function triggerVerification(taskId) {
             if(player.quests[taskId]) return;
@@ -495,20 +474,45 @@
 
         async function handleImageUpload(event) {
             const file = event.target.files[0]; if (!file) return;
-            
             const overlay = document.getElementById('scanner-overlay'); 
+            const sub = document.getElementById('scanner-sub');
+            
             overlay.style.display = "flex";
             document.getElementById('scanner-main').innerText = "[OCR SCAN ACTIVE]";
+            sub.innerText = "Initializing Data Link...";
 
             try {
-                const res = await Tesseract.recognize(file, 'eng');
+                // Compress Image so Tesseract doesn't crash on high-res phone screenshots
+                const img = new Image();
+                img.src = URL.createObjectURL(file);
+                await new Promise(r => img.onload = r);
+                
+                const canvas = document.createElement('canvas');
+                const ctx = canvas.getContext('2d');
+                let w = img.width; let h = img.height;
+                if (w > 800) { h = Math.floor(h * (800 / w)); w = 800; } // Shrink width to 800px max
+                canvas.width = w; canvas.height = h;
+                ctx.drawImage(img, 0, 0, w, h);
+                const compressedData = canvas.toDataURL('image/jpeg', 0.8);
+
+                const res = await Tesseract.recognize(compressedData, 'eng', { 
+                    logger: m => { if(m.status === 'recognizing text') sub.innerText = `Parsing Image Data: ${Math.round(m.progress * 100)}%`; } 
+                });
+                
                 overlay.style.display = "none";
                 const text = res.data.text.replace(/,/g, ''); const numbers = text.match(/\d+/g); let found10k = false;
                 if(numbers) { for(let n of numbers) { if(parseInt(n) >= 10000) found10k = true; } }
                 if (found10k) { showModal("[SYSTEM VERIFIED]", "10,000+ Steps confirmed.\nQuest marked complete."); player.quests.steps = true; saveData(); } 
                 else showModal("[FRAUD DETECTED]", "10,000 steps not found in document.", "critical");
-            } catch(err) { overlay.style.display = "none"; showModal("[SYSTEM ERROR]", "OCR inference failure.", "critical"); }
-            finally { document.getElementById('camera-input').value = ""; document.getElementById('scanner-main').innerText = "[SYSTEM VISION ACTIVE]"; }
+            } catch(err) { 
+                overlay.style.display = "none"; 
+                showModal("[SYSTEM ERROR]", "OCR inference failure. The image might still be too large.", "critical"); 
+            }
+            finally { 
+                document.getElementById('camera-input').value = ""; 
+                document.getElementById('scanner-main').innerText = "[SYSTEM VISION ACTIVE]"; 
+                sub.innerText = "Establishing Neural Link...";
+            }
         }
 
         function checkMidnightReset() {
