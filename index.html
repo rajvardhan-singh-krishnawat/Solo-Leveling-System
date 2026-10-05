@@ -6,13 +6,10 @@
     <title>The System</title>
     <link rel="manifest" href="manifest.json">
     
-    <!-- TensorFlow.js and MoveNet Pose Detection -->
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-core"></script>
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-converter"></script>
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-backend-webgl"></script>
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/pose-detection"></script>
-    
-    <!-- Tesseract.js for OCR -->
     <script src="https://cdn.jsdelivr.net/npm/tesseract.js@4/dist/tesseract.min.js"></script>
 
     <style>
@@ -111,7 +108,7 @@
         <video id="webcam" autoplay playsinline></video>
         <canvas id="skeleton-canvas"></canvas>
         <div id="rep-hud">REPS: <span id="rep-count-display">0</span> / <span id="rep-target-display">100</span></div>
-        <div id="cam-status">AWAITING BODY LOCK (55%+)</div>
+        <div id="cam-status">AWAITING BODY LOCK (50%+)</div>
         <button id="cam-abort-btn" onclick="stopLiveScanner()">SAVE & EXIT</button>
     </div>
 
@@ -286,12 +283,14 @@
         }
 
         // ----------------------------------------------------
-        // LIVE CAMERA AI 
+        // HIGHLY RESPONSIVE AI LOGIC
         // ----------------------------------------------------
         let aiModel = null; let isModelLoading = true;
         let isScanning = false; let camStream = null; let scanTaskId = "";
         let currentReps = 0; let targetReps = 100;
         let exerciseState = "up";
+        
+        let lastFrameTime = 0; // NEW: True Time tracking
 
         async function initSystemVision() {
             try { 
@@ -322,12 +321,12 @@
             if(taskId === 'secret') targetReps = 50;
             if(taskId === 'bonus') targetReps = 120;
             
-            document.getElementById('rep-count-display').innerText = currentReps;
+            document.getElementById('rep-count-display').innerText = Math.floor(currentReps);
             document.getElementById('rep-target-display').innerText = targetReps;
             document.getElementById('live-camera-view').style.display = 'flex';
             
             const statusEl = document.getElementById('cam-status');
-            statusEl.innerText = "AWAITING BODY LOCK (55%+)";
+            statusEl.innerText = "AWAITING BODY LOCK (50%+)";
             statusEl.style.color = "var(--system-red)";
 
             try {
@@ -340,6 +339,7 @@
                     const canvas = document.getElementById('skeleton-canvas');
                     canvas.width = video.videoWidth; canvas.height = video.videoHeight;
                     isScanning = true;
+                    lastFrameTime = Date.now(); // Start true time tracking
                     renderLoop();
                 };
             } catch(err) {
@@ -352,8 +352,8 @@
             isScanning = false;
             if(camStream) camStream.getTracks().forEach(track => track.stop());
             document.getElementById('live-camera-view').style.display = 'none';
-            if(scanTaskId && scanTaskId !== 'bonus') {
-                player.repProgress[scanTaskId] = currentReps;
+            if(scanTaskId) {
+                player.repProgress[scanTaskId] = Math.floor(currentReps);
                 saveData();
             }
         }
@@ -367,17 +367,23 @@
             
             if (video.readyState < 2) { requestAnimationFrame(renderLoop); return; }
 
+            // TRUE TIME DELTA CALCULATION
+            let now = Date.now();
+            let dt = (now - lastFrameTime) / 1000.0; // Seconds passed since last frame
+            lastFrameTime = now;
+
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             
             const poses = await aiModel.estimatePoses(video);
             
-            if (poses.length > 0 && poses[0].score >= 0.55) {
+            // Forgiving 50% Body Lock
+            if (poses.length > 0 && poses[0].score >= 0.50) {
                 const keypoints = poses[0].keypoints;
                 
-                // SMART SIDE SELECTOR: Auto-picks the clearest side (left vs right) for side-profile
+                // HIGHLY FORGIVING 35% JOINT LOCK TO ACCOUNT FOR MOTION BLUR
                 const getBestKP = (leftName, rightName) => {
-                    const left = keypoints.find(k => k.name === leftName && k.score >= 0.45);
-                    const right = keypoints.find(k => k.name === rightName && k.score >= 0.45);
+                    const left = keypoints.find(k => k.name === leftName && k.score >= 0.35);
+                    const right = keypoints.find(k => k.name === rightName && k.score >= 0.35);
                     if (left && right) return left.score > right.score ? left : right;
                     return left || right;
                 };
@@ -385,7 +391,7 @@
                 let hasRequiredJoints = false;
 
                 ctx.fillStyle = 'rgba(0, 255, 0, 0.8)';
-                keypoints.forEach(kp => { if (kp.score >= 0.45) { ctx.beginPath(); ctx.arc(kp.x, kp.y, 6, 0, 2 * Math.PI); ctx.fill(); } });
+                keypoints.forEach(kp => { if (kp.score >= 0.35) { ctx.beginPath(); ctx.arc(kp.x, kp.y, 6, 0, 2 * Math.PI); ctx.fill(); } });
                 
                 if (scanTaskId === 'squat' || scanTaskId === 'severe' || scanTaskId === 'penalty' || scanTaskId === 'secret') {
                     const hip = getBestKP('left_hip', 'right_hip');
@@ -395,10 +401,11 @@
                     if (hip && knee && ankle) {
                         hasRequiredJoints = true;
                         const angle = calculateAngle(hip, knee, ankle);
-                        if (angle < 100) exerciseState = "down";
-                        if (angle > 160 && exerciseState === "down") {
+                        // Much more forgiving squat angles
+                        if (angle < 115) exerciseState = "down";
+                        if (angle > 145 && exerciseState === "down") {
                             exerciseState = "up"; currentReps++;
-                            document.getElementById('rep-count-display').innerText = currentReps;
+                            document.getElementById('rep-count-display').innerText = Math.floor(currentReps);
                         }
                     }
                 }
@@ -411,10 +418,11 @@
                     if (shoulder && elbow && wrist) {
                         hasRequiredJoints = true;
                         const angle = calculateAngle(shoulder, elbow, wrist);
-                        if (angle < 110) exerciseState = "down";
+                        // Forgiving pushup angles
+                        if (angle < 115) exerciseState = "down";
                         if (angle > 140 && exerciseState === "down") {
                             exerciseState = "up"; currentReps++;
-                            document.getElementById('rep-count-display').innerText = currentReps;
+                            document.getElementById('rep-count-display').innerText = Math.floor(currentReps);
                         }
                     }
                 }
@@ -427,11 +435,11 @@
                     if (shoulder && hip && knee) {
                         hasRequiredJoints = true;
                         const angle = calculateAngle(shoulder, hip, knee);
-                        // Much more forgiving angle for crunches (flat is ~180, crunch is ~120)
-                        if (angle > 140) exerciseState = "down";
-                        if (angle < 120 && exerciseState === "down") {
+                        // Very forgiving crunches. Just lift the shoulders.
+                        if (angle > 130) exerciseState = "down";
+                        if (angle < 110 && exerciseState === "down") {
                             exerciseState = "up"; currentReps++;
-                            document.getElementById('rep-count-display').innerText = currentReps;
+                            document.getElementById('rep-count-display').innerText = Math.floor(currentReps);
                         }
                     }
                 }
@@ -440,13 +448,13 @@
                     const shoulder = getBestKP('left_shoulder', 'right_shoulder');
                     const hip = getBestKP('left_hip', 'right_hip');
                     if (shoulder && hip) {
-                        // Just checking if you are horizontal on the floor
+                        // Forgiving horizontal check
                         const dx = Math.abs(shoulder.x - hip.x);
                         const dy = Math.abs(shoulder.y - hip.y);
-                        if (dx > dy) {
+                        if (dx > dy * 0.5) { 
                             hasRequiredJoints = true;
-                            currentReps++; 
-                            document.getElementById('rep-count-display').innerText = Math.floor(currentReps/10); 
+                            currentReps += dt; // Add TRUE SECONDS
+                            document.getElementById('rep-count-display').innerText = Math.floor(currentReps); 
                         }
                     }
                 }
@@ -459,8 +467,7 @@
                     statusEl.style.color = "var(--system-gold)";
                 }
 
-                let checkAmount = scanTaskId === 'bonus' ? currentReps/10 : currentReps;
-                if (checkAmount >= targetReps) {
+                if (Math.floor(currentReps) >= targetReps) {
                     stopLiveScanner();
                     player.quests[scanTaskId] = true;
                     if(scanTaskId === 'severe') player.isSevere = false;
@@ -471,7 +478,7 @@
                     return; 
                 }
             } else {
-                statusEl.innerText = "AWAITING BODY LOCK (55%+)";
+                statusEl.innerText = "AWAITING BODY LOCK (50%+)";
                 statusEl.style.color = "var(--system-red)";
             }
             requestAnimationFrame(renderLoop);
@@ -592,7 +599,7 @@
                         let target = t === 'pushup' || t === 'crunch' || t === 'squat' || t === 'penalty' ? 100 : t === 'severe' ? 200 : t === 'secret' ? 50 : 120;
                         let progress = player.repProgress[t] || 0;
                         if(player.quests[t]) progress = target;
-                        span.innerText = `${progress} / ${target}`;
+                        span.innerText = `${Math.floor(progress)} / ${target}`;
                     }
                     if(player.quests[t]) {
                         el.classList.add('completed');
